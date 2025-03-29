@@ -1,0 +1,13 @@
+{
+  "admins": [
+    {
+      "username": "root",
+      "password": "",
+      "permissions": [
+        "WRITE",
+        "READ",
+        "ADMIN"
+      ]
+    }
+  ]
+}
