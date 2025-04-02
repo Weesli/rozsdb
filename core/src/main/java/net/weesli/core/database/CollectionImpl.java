@@ -5,11 +5,9 @@ import com.google.gson.JsonParser;
 import lombok.Getter;
 import lombok.Setter;
 import net.weesli.api.database.Collection;
-import net.weesli.core.Main;
 import net.weesli.core.file.BaseFileManager;
-import net.weesli.services.log.DatabaseLogger;
 import net.weesli.core.model.ObjectIdImpl;
-import net.weesli.core.store.CacheStore;
+import net.weesli.core.store.CacheStoreImpl;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -19,7 +17,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Getter@Setter
-public class CollectionImpl extends CacheStore implements Collection {
+public class CollectionImpl extends CacheStoreImpl implements Collection {
 
     private Path collectionPath;
     private String collectionName;
@@ -37,13 +35,7 @@ public class CollectionImpl extends CacheStore implements Collection {
 
     private void load(){
         BaseFileManager fileManager = new BaseFileManager();
-        File[] files = collectionPath.toFile().listFiles();
-        if (files == null) return;  // handle case of no files in the directory
-        for (File file : files){
-            String id = file.getName().replace(".json", "");
-            String json = fileManager.read(file);
-            cache.put(ObjectIdImpl.valueOf(id), json);
-        }
+        fileManager.readAllFilesInDirectory(collectionPath.toFile(), 1000).forEach((key, value) -> cache.put(ObjectIdImpl.valueOf(key), value));
     }
 
     @Override

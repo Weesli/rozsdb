@@ -1,0 +1,11 @@
+[
+  {
+    "username": "root",
+    "password": "",
+    "permissions": [
+      "ADMIN",
+      "WRITE",
+      "READ"
+    ]
+  }
+]

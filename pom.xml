@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>net.weesli</groupId>
+    <artifactId>RozsDB</artifactId>
+    <version>1.0</version>
+    <packaging>pom</packaging>
+    <modules>
+        <module>services</module>
+        <module>server</module>
+        <module>core</module>
+        <module>api</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.36</version>
+        </dependency>
+        <dependency>
+            <groupId>net.weesli</groupId>
+            <artifactId>core</artifactId>
+            <version>1.0</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+
+</project>
