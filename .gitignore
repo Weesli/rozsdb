@@ -1,8 +1,9 @@
-/target/
-/databaseImpl/
-/config/
+
 
 .idea
+config
+java
+RozsDB.iml
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
