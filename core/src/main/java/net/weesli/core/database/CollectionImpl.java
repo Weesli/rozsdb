@@ -4,7 +4,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import net.weesli.api.database.Collection;
+import net.weesli.api.model.ObjectId;
 import net.weesli.core.file.BaseFileManager;
 import net.weesli.core.model.ObjectIdImpl;
 import net.weesli.core.store.CacheStoreImpl;
@@ -13,7 +15,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Getter@Setter
@@ -39,33 +41,47 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
     }
 
     @Override
-    public void insertOrUpdate(String id, String src){
+    public String insertOrUpdate(String id, String src){
         cache.put(ObjectIdImpl.valueOf(id), src);
+        return appendId(id, src);
     }
 
     @Override
-    public void insertOrUpdate(String src) {
-        cache.put(new ObjectIdImpl(), src);
+    public String insertOrUpdate(String src) {
+        ObjectId id = new ObjectIdImpl();
+        cache.put(id, src);
+        return appendId(id.getObjectId(), src);
     }
 
+    @SneakyThrows
     @Override
-    public void delete(String  id){
+    public boolean delete(String id){
+        if(!cache.containsKey(ObjectIdImpl.valueOf(id))){
+            return false;
+        }
         cache.remove(ObjectIdImpl.valueOf(id));
+        BaseFileManager fileManager = new BaseFileManager();
+        fileManager.deleteFile(new File(collectionPath.toFile(), id + ".json"));
+        return true;
     }
 
+    @SneakyThrows
     @Override
     public String findById(String id){
-        return cache.getOrDefault(ObjectIdImpl.valueOf(id), null);
+        if(!cache.containsKey(ObjectIdImpl.valueOf(id))){
+            return null;
+        }
+        String json = cache.getOrDefault(ObjectIdImpl.valueOf(id), null);
+        return json != null? appendId(id, json) : null;
     }
 
     @Override
     public List<String> find(String where, Object value) {
-        Set<JsonObject> elements = cache
-                .values().stream().map(line -> JsonParser.parseString(line).getAsJsonObject()).collect(Collectors.toSet());
         List<String> result = new ArrayList<>();
-        for (JsonObject element : elements) {
-            if (element.has(where) && element.get(where).getAsString().equals(value.toString())) {
-                result.add(element.toString());
+        for (Map.Entry<ObjectId, String> entry : cache.entrySet()){
+            JsonObject element = JsonParser.parseString(entry.getValue()).getAsJsonObject();
+            if (element.has(where) && element.get(where).equals(value)) {
+                result.add(appendId(entry.getKey().getObjectId(), entry.getValue()));
             }
         }
         return result;
@@ -73,14 +89,19 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
 
     @Override
     public List<String> findAll(){
-
-        return cache.values().stream().filter(string -> {
+        return cache.entrySet().stream().filter(entry -> {
             try {
-                JsonParser.parseString(string).getAsJsonObject();
+                JsonParser.parseString(entry.getValue()).getAsJsonObject();
                 return true;
             }catch (Exception e){
                 return false;
             }
-        }).map(string -> JsonParser.parseString(string).getAsJsonObject()).map(JsonObject::toString).collect(Collectors.toList());
+        }).map(entry -> appendId(entry.getKey().getObjectId(), entry.getValue())).collect(Collectors.toList());
+    }
+
+    private String appendId(String id, String json){
+        JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
+        jsonObject.addProperty("$id", id);
+        return jsonObject.toString();
     }
 }

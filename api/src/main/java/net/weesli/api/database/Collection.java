@@ -11,9 +11,9 @@ public interface Collection extends CacheStore {
     Path getCollectionPath();
     String getCollectionName();
 
-    void insertOrUpdate(String id, String src);
-    void insertOrUpdate(String src);
-    void delete(String id);
+    String insertOrUpdate(String id, String src);
+    String insertOrUpdate(String src);
+    boolean delete(String id);
     String findById(String id);
     List<String> find(String where, Object value);
     List<String> findAll();
