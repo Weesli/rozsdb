@@ -2,6 +2,7 @@ package net.weesli.server.controller;
 
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.core.json.JsonObject;
 import net.weesli.api.database.Collection;
 import net.weesli.api.database.Database;
 import net.weesli.server.Server;
@@ -23,12 +24,11 @@ public class CollectionController {
 
     public void addRoutes(Router router) {
         router.route("/databases/:database/collections/*").handler(this::authenticate);
-        router.get("/databases/:database/collections/:collection/findbyid/:id").handler(this::handleFindById);
-        router.get("/databases/:database/collections/:collection/find/:field/:value").handler(this::handleFind);
-        router.get("/databases/:database/collections/:collection/findall").handler(this::handleFindAll);
-        router.get("/databases/:database/collections/:collection/delete/:id").handler(this::handleDelete);
-        router.post("/databases/:database/collections/:collection/insertorupdate/:id").handler(this::handleInsertOrUpdate);
-        router.post("/databases/:database/collections/:collection/insertorupdate/").handler(this::handleInsertOrUpdate);
+        router.post("/databases/:database/collections/:collection/findbyid").handler(this::handleFindById);
+        router.post("/databases/:database/collections/:collection/find").handler(this::handleFind);
+        router.post("/databases/:database/collections/:collection/findall").handler(this::handleFindAll);
+        router.post("/databases/:database/collections/:collection/delete").handler(this::handleDelete);
+        router.post("/databases/:database/collections/:collection/insertorupdate").handler(this::handleInsertOrUpdate);
     }
 
     private void authenticate(RoutingContext context) {
@@ -44,33 +44,55 @@ public class CollectionController {
     public void handleFindById(RoutingContext context) {
         if (!checkPermission(context, "read")) return;
 
-        withDatabaseAndCollection(context, (database, collection) -> {
-            String id = context.pathParam("id");
-            String response = collection.findById(id);
+        context.request().body().onSuccess(buffer -> {
+            JsonObject body = new JsonObject(buffer.toString());
+            String id = body.getString("id");
 
-            if (response == null) {
-                sendErrorResponse(context, 404, "Data not found");
+            if (id == null) {
+                sendErrorResponse(context, 400, "Missing id parameter");
                 return;
             }
 
-            sendSuccessResponse(context, response);
+            withDatabaseAndCollection(context, (database, collection) -> {
+                String response = collection.findById(id);
+
+                if (response == null) {
+                    sendErrorResponse(context, 404, "Data not found");
+                    return;
+                }
+
+                sendSuccessResponse(context, response);
+            });
+        }).onFailure(err -> {
+            sendErrorResponse(context, 400, "Error reading body");
         });
     }
 
     public void handleFind(RoutingContext context) {
         if (!checkPermission(context, "read")) return;
 
-        withDatabaseAndCollection(context, (database, collection) -> {
-            String field = context.request().getParam("field");
-            String value = context.request().getParam("value");
-            List<String> response = collection.find(field, value);
+        context.request().body().onSuccess(buffer -> {
+            JsonObject body = new JsonObject(buffer.toString());
+            String field = body.getString("field");
+            String value = body.getString("value");
 
-            if (response == null || response.isEmpty()) {
-                sendErrorResponse(context, 404, "Data not found");
+            if (field == null || value == null) {
+                sendErrorResponse(context, 400, "Missing field or value parameters");
                 return;
             }
 
-            sendSuccessResponse(context, response.toString());
+            withDatabaseAndCollection(context, (database, collection) -> {
+                List<String> response = collection.find(field, value);
+
+                if (response == null || response.isEmpty()) {
+                    sendErrorResponse(context, 404, "Data not found");
+                    return;
+                }
+
+                sendSuccessResponse(context, response.toString());
+            });
+        }).onFailure(err -> {
+            sendErrorResponse(context, 400, "Error reading body");
         });
     }
 
@@ -86,32 +108,53 @@ public class CollectionController {
     public void handleDelete(RoutingContext context) {
         if (!checkPermission(context, "write")) return;
 
-        withDatabaseAndCollection(context, (database, collection) -> {
-            String id = context.pathParam("id");
-            collection.delete(id);
-            sendSuccessResponse(context, "Data deleted successfully");
+        context.request().body().onSuccess(buffer -> {
+            JsonObject body = new JsonObject(buffer.toString());
+            String id = body.getString("id");
+
+            if (id == null) {
+                sendErrorResponse(context, 400, "Missing id parameter");
+                return;
+            }
+
+            withDatabaseAndCollection(context, (database, collection) -> {
+                boolean status = collection.delete(id);
+                if (!status) {
+                    sendErrorResponse(context, 404, "Data not found");
+                    return;
+                }
+                sendSuccessResponse(context, "Data deleted successfully");
+            });
+        }).onFailure(err -> {
+            sendErrorResponse(context, 400, "Error reading body");
         });
     }
 
     public void handleInsertOrUpdate(RoutingContext context) {
         if (!checkPermission(context, "write")) return;
 
-        withDatabaseAndCollection(context, (database, collection) -> {
-            String id = context.pathParam("id");
+        context.request().body().onSuccess(buffer -> {
+            JsonObject body = new JsonObject(buffer.toString());
+            String id = body.getString("id");
+            String jsonData = body.getString("data");
 
-            context.request().body().onSuccess(buffer -> {
-                String jsonData = buffer.toString();
+            if (jsonData == null) {
+                sendErrorResponse(context, 400, "Missing data parameter");
+                return;
+            }
 
+            withDatabaseAndCollection(context, (database, collection) -> {
+                String data;
                 if (id != null) {
-                    collection.insertOrUpdate(id, jsonData);
+                    data = collection.insertOrUpdate(id, jsonData);
                 } else {
-                    collection.insertOrUpdate(jsonData);
+                    data = collection.insertOrUpdate(jsonData);
                 }
 
-                sendSuccessResponse(context, "Data inserted or updated successfully");
-            }).onFailure(err -> {
-                sendErrorResponse(context, 400, "Error reading body");
+                sendSuccessResponse(context, data);
             });
+        }).onFailure(err -> {
+            sendErrorResponse(context, 400, "Error reading body");
         });
     }
 
@@ -153,14 +196,14 @@ public class CollectionController {
         context.response()
                 .setStatusCode(200)
                 .putHeader("Content-Type", "application/json")
-                .end("{ \"message\": \"" + message + "\" }");
+                .end(message);
     }
 
     private void sendErrorResponse(RoutingContext context, int statusCode, String message) {
         context.response()
                 .setStatusCode(statusCode)
                 .putHeader("Content-Type", "application/json")
-                .end("{ \"message\": \"" + message + "\" }");
+                .end(message);
     }
 
     @FunctionalInterface
