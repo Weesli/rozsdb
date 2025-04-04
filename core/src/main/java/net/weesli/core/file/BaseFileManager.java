@@ -1,6 +1,7 @@
 package net.weesli.core.file;
 
 import lombok.SneakyThrows;
+import net.weesli.services.log.DatabaseLogger;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -244,6 +245,12 @@ public class BaseFileManager {
         } catch (InterruptedException e) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
+        }
+    }
+
+    public void deleteFile(File file) {
+        if (!file.delete()) {
+            DatabaseLogger.log(DatabaseLogger.ModuleType.CORE, DatabaseLogger.LogLevel.ERROR, file.toPath() + " not deleted!");
         }
     }
 }
