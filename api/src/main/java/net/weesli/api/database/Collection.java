@@ -11,10 +11,10 @@ public interface Collection extends CacheStore {
     Path getCollectionPath();
     String getCollectionName();
 
-    String insertOrUpdate(String id, String src);
-    String insertOrUpdate(String src);
+    byte[] insertOrUpdate(String id, String src);
+    byte[] insertOrUpdate(String src);
     boolean delete(String id);
-    String findById(String id);
-    List<String> find(String where, Object value);
-    List<String> findAll();
+    byte[] findById(String id);
+    List<byte[]> find(String where, Object value);
+    List<byte[]> findAll();
 }

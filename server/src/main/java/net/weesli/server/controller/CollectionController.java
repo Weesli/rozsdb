@@ -54,14 +54,14 @@ public class CollectionController {
             }
 
             withDatabaseAndCollection(context, (database, collection) -> {
-                String response = collection.findById(id);
+                byte[] response = collection.findById(id);
 
                 if (response == null) {
                     sendErrorResponse(context, 404, "Data not found");
                     return;
                 }
 
-                sendSuccessResponse(context, response);
+                sendSuccessResponse(context, response.toString());
             });
         }).onFailure(err -> {
             sendErrorResponse(context, 400, "Error reading body");
@@ -82,7 +82,7 @@ public class CollectionController {
             }
 
             withDatabaseAndCollection(context, (database, collection) -> {
-                List<String> response = collection.find(field, value);
+                List<byte[]> response = collection.find(field, value);
 
                 if (response == null || response.isEmpty()) {
                     sendErrorResponse(context, 404, "Data not found");
@@ -144,14 +144,14 @@ public class CollectionController {
             }
 
             withDatabaseAndCollection(context, (database, collection) -> {
-                String data;
+                byte[] data;
                 if (id != null) {
                     data = collection.insertOrUpdate(id, jsonData);
                 } else {
                     data = collection.insertOrUpdate(jsonData);
                 }
 
-                sendSuccessResponse(context, data);
+                sendSuccessResponse(context, data.toString());
             });
         }).onFailure(err -> {
             sendErrorResponse(context, 400, "Error reading body");

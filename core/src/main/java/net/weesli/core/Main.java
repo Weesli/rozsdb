@@ -1,5 +1,7 @@
 package net.weesli.core;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import lombok.Getter;
 import net.weesli.core.database.DatabaseImpl;
 import net.weesli.core.database.DatabasePoolProviderImpl;

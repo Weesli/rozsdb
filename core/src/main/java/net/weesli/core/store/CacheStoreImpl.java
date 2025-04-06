@@ -1,25 +1,44 @@
 package net.weesli.core.store;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.github.luben.zstd.Zstd;
 import lombok.Getter;
 import net.weesli.api.CacheStore;
 import net.weesli.api.model.ObjectId;
 import net.weesli.core.model.ObjectIdImpl;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 @Getter
 public class CacheStoreImpl implements CacheStore {
-    public ConcurrentHashMap<ObjectId, String> cache;
+    public ConcurrentHashMap<ObjectId, byte[]> cache;
 
     public CacheStoreImpl() {
         cache = new ConcurrentHashMap<>();
     }
 
-    public JsonObject getJsonObject(String id){
+    public String getString(String id){
         ObjectIdImpl objectId = ObjectIdImpl.valueOf(id);
-        String json = cache.get(objectId);
-        return JsonParser.parseString(json).getAsJsonObject();
+        byte[] value = cache.get(objectId);
+        return value == null? null : getString(value);
     }
+
+    public String getString(byte[] value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            long decompressedSize = Zstd.decompressedSize(value);
+            if (decompressedSize <= 0) {
+                decompressedSize = value.length * 10L;
+            }
+
+            byte[] decompressed = Zstd.decompress(value, (int)decompressedSize);
+            return new String(decompressed, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            System.err.println("Decompression failed: " + e.getMessage());
+            return null;
+        }
+    }
+
 
 }

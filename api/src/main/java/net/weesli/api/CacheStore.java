@@ -6,5 +6,5 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public interface CacheStore {
 
-    ConcurrentHashMap<ObjectId, String> getCache();
+    ConcurrentHashMap<ObjectId, byte[]> getCache();
 }

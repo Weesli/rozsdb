@@ -43,8 +43,8 @@ public class WritePool extends BaseFileManager implements DatabasePool {
 
     private void applyDatabase(Database database) {
         for (Collection collection : database.getCollections()) {
-            for (Map.Entry<ObjectId, String> entry : collection.getCache().entrySet()) {
-                File file = new File(collection.getCollectionPath().toFile(), entry.getKey() + ".json");
+            for (Map.Entry<ObjectId, byte[]> entry : collection.getCache().entrySet()) {
+                File file = new File(collection.getCollectionPath().toFile(), entry.getKey() + "");
                 write(entry.getValue(), file);
             }
         }
@@ -58,8 +58,8 @@ public class WritePool extends BaseFileManager implements DatabasePool {
     public void forceUpdate() {
         for (Database database : databases) {
             for (Collection collection : database.getCollections()) {
-                for (Map.Entry<ObjectId, String> entry : collection.getCache().entrySet()) {
-                    File file = new File(collection.getCollectionPath().toFile(), entry.getKey() + ".json");
+                for (Map.Entry<ObjectId, byte[]> entry : collection.getCache().entrySet()) {
+                    File file = new File(collection.getCollectionPath().toFile(), entry.getKey() + "");
                     write(entry.getValue(), file);
                 }
             }

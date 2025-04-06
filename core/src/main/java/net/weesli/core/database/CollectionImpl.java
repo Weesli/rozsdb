@@ -1,7 +1,9 @@
 package net.weesli.core.database;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.luben.zstd.Zstd;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -12,6 +14,7 @@ import net.weesli.core.model.ObjectIdImpl;
 import net.weesli.core.store.CacheStoreImpl;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +34,6 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         if (!collectionFile.exists()){
             collectionFile.mkdirs();
         }
-        // load all data from the collection file
         load();
     }
 
@@ -41,17 +43,22 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
     }
 
     @Override
-    public String insertOrUpdate(String id, String src){
-        cache.put(ObjectIdImpl.valueOf(id), src);
-        return appendId(id, src);
+    public byte[] insertOrUpdate(String id, String src) {
+        ObjectId objectId = ObjectIdImpl.valueOf(id);
+        String jsonWithId = appendId(id, src);
+        cache.put(objectId, appendByteFormat(jsonWithId));
+        return appendByteFormat(jsonWithId);
     }
 
     @Override
-    public String insertOrUpdate(String src) {
+    public byte[] insertOrUpdate(String src) {
         ObjectId id = new ObjectIdImpl();
-        cache.put(id, src);
-        return appendId(id.getObjectId(), src);
+        String jsonWithId = appendId(id.getObjectId(), src);
+        byte[] bytes = appendByteFormat(jsonWithId);
+        cache.put(id, bytes);
+        return bytes;
     }
+
 
     @SneakyThrows
     @Override
@@ -61,47 +68,63 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         }
         cache.remove(ObjectIdImpl.valueOf(id));
         BaseFileManager fileManager = new BaseFileManager();
-        fileManager.deleteFile(new File(collectionPath.toFile(), id + ".json"));
+        fileManager.deleteFile(new File(collectionPath.toFile(), id));
         return true;
     }
 
     @SneakyThrows
     @Override
-    public String findById(String id){
+    public byte[] findById(String id){
         if(!cache.containsKey(ObjectIdImpl.valueOf(id))){
             return null;
         }
-        String json = cache.getOrDefault(ObjectIdImpl.valueOf(id), null);
-        return json != null? appendId(id, json) : null;
+        return cache.get(ObjectIdImpl.valueOf(id));
     }
 
     @Override
-    public List<String> find(String where, Object value) {
-        List<String> result = new ArrayList<>();
-        for (Map.Entry<ObjectId, String> entry : cache.entrySet()){
-            JsonObject element = JsonParser.parseString(entry.getValue()).getAsJsonObject();
-            if (element.has(where) && element.get(where).equals(value)) {
-                result.add(appendId(entry.getKey().getObjectId(), entry.getValue()));
-            }
-        }
+    public List<byte[]> find(String where, Object value) {
+        List<byte[]> result = new ArrayList<>();
+        ObjectMapper mapper = new ObjectMapper();
+
+        Map<ObjectId, JsonNode> decompressedCache = cache.entrySet().parallelStream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> {
+                            try {
+                                return mapper.readTree(Zstd.decompress(entry.getValue(), entry.getValue().length * 10));
+                            } catch (Exception e) {
+                                System.err.println("Error parsing JSON: " + e.getMessage());
+                                return null;
+                            }
+                        }
+                ));
+
+        result = decompressedCache.entrySet().parallelStream()
+                .filter(entry -> entry.getValue() != null && entry.getValue().has(where) &&
+                        entry.getValue().get(where).asText().equals(value.toString()))
+                .map(entry -> cache.get(entry.getKey()))
+                .collect(Collectors.toList());
         return result;
     }
 
+
+
+
     @Override
-    public List<String> findAll(){
-        return cache.entrySet().stream().filter(entry -> {
-            try {
-                JsonParser.parseString(entry.getValue()).getAsJsonObject();
-                return true;
-            }catch (Exception e){
-                return false;
-            }
-        }).map(entry -> appendId(entry.getKey().getObjectId(), entry.getValue())).collect(Collectors.toList());
+    public List<byte[]> findAll(){
+        return cache.values().stream().toList();
     }
 
+    @SneakyThrows
     private String appendId(String id, String json){
-        JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
-        jsonObject.addProperty("$id", id);
-        return jsonObject.toString();
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode node = mapper.readTree(json);
+        ((ObjectNode) node).put("$id", id);
+        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+    }
+
+    private byte[] appendByteFormat(String src){
+        byte[] bytes = src.getBytes(StandardCharsets.UTF_8);
+        return Zstd.compress(bytes);
     }
 }
