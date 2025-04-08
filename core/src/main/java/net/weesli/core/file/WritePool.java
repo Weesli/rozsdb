@@ -6,25 +6,26 @@ import net.weesli.api.database.Collection;
 import net.weesli.api.database.Database;
 import net.weesli.api.model.ObjectId;
 import net.weesli.core.database.DatabaseImpl;
+import net.weesli.core.model.WriteTask;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
+
 @Getter
-public class WritePool extends BaseFileManager implements DatabasePool {
+public class WritePool extends DatabaseFileManager implements DatabasePool {
 
     private final ScheduledExecutorService scheduler;
     private final ScheduledExecutorService threadPool;
 
     private List<Database> databases = new ArrayList<>();
+    private final BlockingQueue<WriteTask> writeQueue;
+    private final int BATCH_SIZE = 100;
 
     public WritePool() {
         scheduler = Executors.newScheduledThreadPool(1);
         threadPool = Executors.newScheduledThreadPool(10);
+        writeQueue = new LinkedBlockingQueue<>();
         start();
     }
 
@@ -34,19 +35,31 @@ public class WritePool extends BaseFileManager implements DatabasePool {
 
     public void start() {
         Runnable runnable = () -> {
-            for (Database database : databases) {
-                threadPool.submit(() -> applyDatabase(database));
-            }
+            threadPool.submit(this::processWriteQueue);
         };
         scheduler.scheduleWithFixedDelay(runnable, 0, 1, TimeUnit.MINUTES);
     }
+    private void processWriteQueue() {
+        List<WriteTask> batch = new ArrayList<>();
+        writeQueue.drainTo(batch, BATCH_SIZE);
 
-    private void applyDatabase(Database database) {
-        for (Collection collection : database.getCollections()) {
-            for (Map.Entry<ObjectId, byte[]> entry : collection.getCache().entrySet()) {
-                File file = new File(collection.getCollectionPath().toFile(), entry.getKey() + "");
-                write(entry.getValue(), file);
-            }
+        if (!batch.isEmpty()) {
+            batch.forEach(task -> {
+                for (Collection collection : task.database().getCollections()) {
+                    File file = new File(collection.getCollectionPath().toFile(), task.objectId() + "");
+                    write(task.data(), file);
+                }
+            });
+        }
+    }
+
+    public void enqueueWrite(Database database, ObjectId objectId, byte[] data) {
+        WriteTask task = new WriteTask(database, objectId, data);
+        try {
+            writeQueue.put(task);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Failed to enqueue write task", e);
         }
     }
 
@@ -56,13 +69,14 @@ public class WritePool extends BaseFileManager implements DatabasePool {
     }
 
     public void forceUpdate() {
-        for (Database database : databases) {
-            for (Collection collection : database.getCollections()) {
-                for (Map.Entry<ObjectId, byte[]> entry : collection.getCache().entrySet()) {
-                    File file = new File(collection.getCollectionPath().toFile(), entry.getKey() + "");
-                    write(entry.getValue(), file);
-                }
+        List<WriteTask> allTasks = new ArrayList<>();
+        writeQueue.drainTo(allTasks);
+
+        allTasks.forEach(task -> {
+            for (Collection collection : task.database().getCollections()) {
+                File file = new File(collection.getCollectionPath().toFile(), task.objectId() + "");
+                write(task.data(), file);
             }
-        }
+        });
     }
 }

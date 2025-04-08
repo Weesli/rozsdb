@@ -10,6 +10,8 @@ public interface Collection extends CacheStore {
 
     Path getCollectionPath();
     String getCollectionName();
+    boolean isTimeout();
+    Database getDatabase();
 
     byte[] insertOrUpdate(String id, String src);
     byte[] insertOrUpdate(String src);
@@ -17,4 +19,6 @@ public interface Collection extends CacheStore {
     byte[] findById(String id);
     List<byte[]> find(String where, Object value);
     List<byte[]> findAll();
+
+    void save();
 }

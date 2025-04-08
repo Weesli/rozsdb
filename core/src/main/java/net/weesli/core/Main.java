@@ -79,9 +79,9 @@ public class Main {
                 return;
             }
             // convert the file to Database
-            Set<DatabaseImpl> databaseImpls = Arrays.stream(files).map(DatabaseImpl::load).collect(Collectors.toSet());
+            Set<DatabaseImpl> databases = Arrays.stream(files).map(file-> new DatabaseImpl(file.getName(), file)).collect(Collectors.toSet());
             writePool = new WritePool();
-            databaseImpls.forEach(writePool::register);
+            databases.forEach(writePool::register);
             log(ModuleType.CORE, DatabaseLogger.LogLevel.INFO, "Write pool is created!");
         }
         public void initializeAllFiles() {

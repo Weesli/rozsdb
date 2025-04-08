@@ -43,10 +43,8 @@ public class ObjectIdImpl implements ObjectId {
     public String getObjectId() {
         return objectId;
     }
-
-    private static final String CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
     private String generate() {
+        String CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
         StringBuilder sb = new StringBuilder(36);
         SecureRandom random = new SecureRandom();
         for (int i = 0; i < 12; i++) {

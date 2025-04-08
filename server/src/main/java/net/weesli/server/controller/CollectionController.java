@@ -24,6 +24,7 @@ public class CollectionController {
 
     public void addRoutes(Router router) {
         router.route("/databases/:database/collections/*").handler(this::authenticate);
+        router.get("/databases/:database/collections/:collection").handler(this::handleInitCollection);
         router.post("/databases/:database/collections/:collection/findbyid").handler(this::handleFindById);
         router.post("/databases/:database/collections/:collection/find").handler(this::handleFind);
         router.post("/databases/:database/collections/:collection/findall").handler(this::handleFindAll);
@@ -39,6 +40,14 @@ public class CollectionController {
         }
         context.put("user", admin);
         context.next();
+    }
+
+    private void handleInitCollection(RoutingContext context) { // this endpoint created for pre-warn collection
+        if (!checkPermission(context, "read")) return;
+
+        withDatabaseAndCollection(context, (database, collection) -> {
+            sendSuccessResponse(context, "");
+        });
     }
 
     public void handleFindById(RoutingContext context) {
@@ -180,16 +189,14 @@ public class CollectionController {
 
         Database database = databaseOpt.get();
         String collectionName = context.pathParam("collection");
-        Optional<Collection> collectionOpt = database.getCollections().stream()
-                .filter(c -> c.getCollectionName().equals(collectionName))
-                .findFirst();
+        Collection collection = database.getCollection(collectionName);
 
-        if (collectionOpt.isEmpty()) {
+        if (collection == null) {
             sendErrorResponse(context, 404, "Collection not found");
             return;
         }
 
-        consumer.accept(database, collectionOpt.get());
+        consumer.accept(database, collection);
     }
 
     private void sendSuccessResponse(RoutingContext context, String message) {

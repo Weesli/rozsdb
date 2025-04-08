@@ -9,4 +9,6 @@ public interface Database {
     File getDirectory();
 
     List<Collection> getCollections();
+    Collection getCollection(String collectionName);
+    void unregisterCollection(String collectionName);
 }
