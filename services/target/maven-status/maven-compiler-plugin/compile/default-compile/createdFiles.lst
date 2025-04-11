@@ -1,0 +1,10 @@
+net\weesli\services\log\DatabaseLogger$LogLevel.class
+net\weesli\services\Service.class
+net\weesli\services\ServiceFactory.class
+net\weesli\services\user\UserService.class
+net\weesli\services\user\BaseUser.class
+net\weesli\services\log\DatabaseLogger$ModuleType.class
+net\weesli\services\user\UserRegistry.class
+net\weesli\services\user\enums\UserPermission.class
+net\weesli\services\log\DatabaseLogger.class
+net\weesli\services\user\model\User.class

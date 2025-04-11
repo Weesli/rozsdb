@@ -1,0 +1,6 @@
+net\weesli\api\DatabasePoolProvider.class
+net\weesli\api\database\Collection.class
+net\weesli\api\CacheStore.class
+net\weesli\api\DatabasePool.class
+net\weesli\api\model\ObjectId.class
+net\weesli\api\database\Database.class
