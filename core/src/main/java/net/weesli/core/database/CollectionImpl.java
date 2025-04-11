@@ -1,6 +1,5 @@
 package net.weesli.core.database;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
@@ -15,6 +14,8 @@ import net.weesli.api.database.Collection;
 import net.weesli.api.database.Database;
 import net.weesli.api.model.ObjectId;
 import net.weesli.core.Main;
+import net.weesli.core.index.IndexManager;
+import net.weesli.core.model.DataMeta;
 import net.weesli.core.timeout.TimeoutTask;
 import net.weesli.core.timeout.types.CollectionTimeoutTask;
 import net.weesli.core.exception.CollectionError;
@@ -23,16 +24,15 @@ import net.weesli.core.file.DatabaseFileManager;
 import net.weesli.core.mapper.ObjectMapperProvider;
 import net.weesli.core.model.ObjectIdImpl;
 import net.weesli.core.store.CacheStoreImpl;
+import net.weesli.core.util.IndexMetaUtil;
 import net.weesli.services.log.DatabaseLogger;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @Getter@Setter
 public class CollectionImpl extends CacheStoreImpl implements Collection {
@@ -54,6 +54,8 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         }
         load();
         task = new CollectionTimeoutTask(this); // create a cleaner for this collection
+        File metaFile = new File(collectionPath.toFile(), "meta.rozs");
+        IndexMetaUtil.insertDefaultMeta(metaFile);
     }
 
     private void load(){
@@ -68,11 +70,23 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
             throw new CollectionTimeOutException("This collection is out of time");
         }
         ObjectId objectId = ObjectIdImpl.valueOf(id);
-        String jsonWithId = appendId(id, src);
+        JsonNode object = getJsonObject(src);
+        String jsonWithId = appendId(id, object);
         byte[] data = appendByteFormat(jsonWithId);
         cache.put(objectId, data);
         triggerAction();
         Main.core.getWritePool().enqueueWrite(database, objectId, data);
+        Iterator<String> fields = object.fieldNames();
+        List<String> fieldList = new ArrayList<>();
+        while (fields.hasNext()) {
+            fieldList.add(fields.next());
+        }
+        DataMeta meta = getRecords().stream().filter(r -> r.getId().equals(id)).findFirst().orElse(null);
+        if (meta != null){
+            meta.changeFields(fieldList);
+            meta.changeUpdatedAt(LocalDateTime.now().toString());
+            createOrUpdateRecord(meta);
+        }
         return appendByteFormat(jsonWithId);
     }
 
@@ -83,11 +97,18 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
             throw new CollectionTimeOutException("This collection is out of time");
         }
         ObjectId id = new ObjectIdImpl();
-        String jsonWithId = appendId(id.getObjectId(), src);
+        JsonNode object = getJsonObject(src);
+        String jsonWithId = appendId(id.getObjectId(), object);
         byte[] data = appendByteFormat(jsonWithId);
         cache.put(id, data);
         triggerAction();
         Main.core.getWritePool().enqueueWrite(database, id, data);
+        Iterator<String> fields = object.fieldNames();
+        List<String> fieldList = new ArrayList<>();
+        while (fields.hasNext()) {
+            fieldList.add(fields.next());
+        }
+        createOrUpdateRecord(new DataMeta(id.getObjectId(), LocalDateTime.now().toString(), LocalDateTime.now().toString(), fieldList));
         return data;
     }
 
@@ -105,6 +126,7 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         DatabaseFileManager fileManager = new DatabaseFileManager();
         fileManager.deleteFile(new File(collectionPath.toFile(), id)); // force delete in disk
         triggerAction();
+        deleteRecord(id);
         return true;
     }
 
@@ -128,44 +150,51 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
             throw new CollectionTimeOutException("This collection is out of time");
         }
         List<byte[]> result = Collections.synchronizedList(new ArrayList<>());
-        JsonFactory jsonFactory = mapper.getFactory();
+        for (DataMeta record : getRecords()) {
+            if (!record.hasField(where)) continue;
 
-        cache.values().parallelStream().forEach(entry -> {
-            try {
-                String decompressedJson = getString(entry);
-                if (decompressedJson == null) return;
+            byte[] entry = cache.get(ObjectIdImpl.valueOf(record.getId()));
+            if (entry == null) continue;
+            String decompressedJson = decompressJson(entry);
+            if (decompressedJson == null) continue;
 
-                try (JsonParser parser = jsonFactory.createParser(decompressedJson)) {
-                    boolean isMatch = false;
-                    while (parser.nextToken() != JsonToken.END_OBJECT && !isMatch) {
-                        String fieldName = parser.currentName();
-                        if (fieldName != null && fieldName.equals(where)) {
-                            parser.nextToken();
-                            isMatch = isValueMatch(parser, value);
-                        }
+            try (JsonParser parser = mapper.getFactory().createParser(decompressedJson)) {
+                boolean isMatch = false;
+                while (parser.nextToken() != JsonToken.END_OBJECT && !isMatch) {
+                    String fieldName = parser.currentName();
+                    if (fieldName != null && fieldName.equals(where)) {
+                        parser.nextToken(); // move to value
+                        isMatch = isValueMatch(parser, value);
                     }
-                    if (isMatch) {
-                        result.add(entry);
-                    }
+                }
+                if (isMatch) {
+                    result.add(entry);
                 }
             } catch (Exception e) {
                 System.err.println("Error processing entry: " + e.getMessage());
             }
-        });
+        }
         triggerAction();
         return result;
     }
 
     private boolean isValueMatch(JsonParser parser, Object targetValue) throws IOException {
+        if (parser.currentToken() == JsonToken.VALUE_NULL) {
+            return targetValue == null;
+        }
+
         if (targetValue instanceof String) {
             return parser.getValueAsString().equals(targetValue);
         } else if (targetValue instanceof Number) {
-            return parser.getDoubleValue() == ((Number) targetValue).doubleValue();
+            double parsed = parser.getDoubleValue();
+            double expected = ((Number) targetValue).doubleValue();
+            return Math.abs(parsed - expected) < 0.000001;
         } else if (targetValue instanceof Boolean) {
             return parser.getBooleanValue() == (Boolean) targetValue;
         }
         return false;
     }
+
 
     @SneakyThrows
     @Override
@@ -177,16 +206,22 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         return cache.values().stream().toList();
     }
 
-    public String appendId(String id, String json) throws IllegalArgumentException {
-        if (id == null || json == null || json.isBlank()) {
-            throw new IllegalArgumentException("ID and JSON must not be null or empty");
+    public JsonNode getJsonObject(String src){
+        if (src == null || src.isBlank()) {
+            throw new IllegalArgumentException("Input JSON string cannot be null or empty");
         }
         try {
-            JsonNode node = mapper.readTree(json);
+            return mapper.readTree(src);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Invalid JSON input", e);
+        }
+    }
+
+    public String appendId(String id, JsonNode node) throws IllegalArgumentException {
+        try {
             if (!node.isObject()) {
                 throw new IllegalArgumentException("Input JSON must be a valid JSON object");
             }
-
             ObjectNode objectNode = (ObjectNode) node;
             objectNode.put("$id", id);
             return mapper.writeValueAsString(objectNode);
@@ -236,5 +271,19 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
                 }
             }
         });
+    }
+
+    private List<DataMeta> getRecords(){
+        return new ArrayList<>(IndexManager.getInstance().getIndexMetaManager(database.getName()).getRecords(collectionName));
+    }
+
+    @SneakyThrows
+    private void createOrUpdateRecord(DataMeta dataMeta) {
+        IndexManager.getInstance().getIndexMetaManager(database.getName()).addRecord(collectionName, dataMeta);
+    }
+
+    @SneakyThrows
+    private void deleteRecord(String id){
+        IndexManager.getInstance().getIndexMetaManager(database.getName()).removeRecord(collectionName, id);
     }
 }

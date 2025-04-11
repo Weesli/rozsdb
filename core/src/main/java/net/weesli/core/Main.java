@@ -1,10 +1,9 @@
 package net.weesli.core;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import lombok.Getter;
 import net.weesli.core.database.DatabaseImpl;
 import net.weesli.core.database.DatabasePoolProviderImpl;
+import net.weesli.core.index.IndexManager;
 import net.weesli.core.util.Settings;
 import net.weesli.core.file.WritePool;
 import net.weesli.server.Server;
@@ -29,9 +28,11 @@ public class Main {
             core = new MainInstance();
             core.createDatabase();
             core.createWritePool();
+            IndexManager.getInstance();
             new Server(new DatabasePoolProviderImpl(), core.getSettings().get("port").getAsInt());
             Runtime.getRuntime().addShutdownHook(new Thread(() -> { // register a hook for force save
                 if (core.writePool != null) core.writePool.forceUpdate();
+                IndexManager.getInstance().saveAll();
                 DatabaseLogger.log(DatabaseLogger.ModuleType.CORE,DatabaseLogger.LogLevel.INFO, "RozsDatabase is shutting down...");
             }));
         }catch (Exception e){

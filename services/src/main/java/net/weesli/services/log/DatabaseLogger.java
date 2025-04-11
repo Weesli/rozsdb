@@ -21,6 +21,18 @@ public class DatabaseLogger {
         System.out.printf("%s[%s] [%s] [%s] %s\u001B[0m%n", color,moduleType.name(), level.name(), getFormattedTime(), message);
     }
 
+    public static void logCore(LogLevel level, String message) {
+        log(ModuleType.CORE, level, message);
+    }
+
+    public static void logService(LogLevel level, String message) {
+        log(ModuleType.SERVICE, level, message);
+    }
+
+    public static void logServer(LogLevel level, String message) {
+        log(ModuleType.SERVER, level, message);
+    }
+
     private static String getFormattedTime() {
         return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }

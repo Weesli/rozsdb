@@ -35,14 +35,19 @@ public class WritePool extends DatabaseFileManager implements DatabasePool {
 
     public void start() {
         Runnable runnable = () -> {
-            threadPool.submit(this::processWriteQueue);
+            threadPool.submit(() -> {
+                try {
+                    processWriteQueue();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
         };
-        scheduler.scheduleWithFixedDelay(runnable, 0, 1, TimeUnit.MINUTES);
+        scheduler.scheduleAtFixedRate(runnable, 0, 1, TimeUnit.MINUTES);
     }
     private void processWriteQueue() {
         List<WriteTask> batch = new ArrayList<>();
         writeQueue.drainTo(batch, BATCH_SIZE);
-
         if (!batch.isEmpty()) {
             batch.forEach(task -> {
                 for (Collection collection : task.database().getCollections()) {

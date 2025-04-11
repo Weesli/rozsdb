@@ -1,8 +1,8 @@
 
 
-.idea
+.idea/
 config
-java
+
 RozsDB.iml
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/

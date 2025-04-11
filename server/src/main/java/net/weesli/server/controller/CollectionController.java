@@ -5,10 +5,12 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.core.json.JsonObject;
 import net.weesli.api.database.Collection;
 import net.weesli.api.database.Database;
+import net.weesli.server.ResponseMessage;
 import net.weesli.server.Server;
 import net.weesli.services.ServiceFactory;
 import net.weesli.services.user.UserService;
 
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,8 +71,8 @@ public class CollectionController {
                     sendErrorResponse(context, 404, "Data not found");
                     return;
                 }
-
-                sendSuccessResponse(context, response.toString());
+                String encodedResponse = Base64.getEncoder().encodeToString(response);
+                sendSuccessResponse(context, encodedResponse);
             });
         }).onFailure(err -> {
             sendErrorResponse(context, 400, "Error reading body");
@@ -97,8 +99,10 @@ public class CollectionController {
                     sendErrorResponse(context, 404, "Data not found");
                     return;
                 }
-
-                sendSuccessResponse(context, response.toString());
+                List<String> encodedResponse = response.stream()
+                        .map(data -> Base64.getEncoder().encodeToString(data))
+                        .toList();
+                sendSuccessResponse(context, encodedResponse.toString());
             });
         }).onFailure(err -> {
             sendErrorResponse(context, 400, "Error reading body");
@@ -109,8 +113,15 @@ public class CollectionController {
         if (!checkPermission(context, "read")) return;
 
         withDatabaseAndCollection(context, (database, collection) -> {
-            String response = collection.findAll().toString();
-            sendSuccessResponse(context, response);
+            List<byte[]> response = collection.findAll();
+            if (response == null || response.isEmpty()) {
+                sendErrorResponse(context, 404, "No data found");
+                return;
+            }
+            List<String> encodedResponse = response.stream()
+                    .map(data -> Base64.getEncoder().encodeToString(data))
+                    .toList();
+            sendSuccessResponse(context, encodedResponse.toString());
         });
     }
 
@@ -145,7 +156,7 @@ public class CollectionController {
         context.request().body().onSuccess(buffer -> {
             JsonObject body = new JsonObject(buffer.toString());
             String id = body.getString("id");
-            String jsonData = body.getString("data");
+            JsonObject jsonData = body.getJsonObject("data");
 
             if (jsonData == null) {
                 sendErrorResponse(context, 400, "Missing data parameter");
@@ -155,12 +166,12 @@ public class CollectionController {
             withDatabaseAndCollection(context, (database, collection) -> {
                 byte[] data;
                 if (id != null) {
-                    data = collection.insertOrUpdate(id, jsonData);
+                    data = collection.insertOrUpdate(id, jsonData.toString());
                 } else {
-                    data = collection.insertOrUpdate(jsonData);
+                    data = collection.insertOrUpdate(jsonData.toString());
                 }
-
-                sendSuccessResponse(context, data.toString());
+                String encodedData = Base64.getEncoder().encodeToString(data);
+                sendSuccessResponse(context, encodedData);
             });
         }).onFailure(err -> {
             sendErrorResponse(context, 400, "Error reading body");
@@ -196,6 +207,11 @@ public class CollectionController {
             return;
         }
 
+        if (collection.isTimeout()){
+            sendErrorResponse(context, 408, "Collection timeout");
+            return;
+        }
+
         consumer.accept(database, collection);
     }
 
@@ -203,14 +219,14 @@ public class CollectionController {
         context.response()
                 .setStatusCode(200)
                 .putHeader("Content-Type", "application/json")
-                .end(message);
+                .end(ResponseMessage.success(message).toString());
     }
 
     private void sendErrorResponse(RoutingContext context, int statusCode, String message) {
         context.response()
                 .setStatusCode(statusCode)
                 .putHeader("Content-Type", "application/json")
-                .end(message);
+                .end(ResponseMessage.error(message).toString());
     }
 
     @FunctionalInterface

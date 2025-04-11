@@ -16,13 +16,13 @@ public class CacheStoreImpl implements CacheStore {
         cache = new ConcurrentHashMap<>();
     }
 
-    public String getString(String id){
+    public String decompressJson(String id){
         ObjectIdImpl objectId = ObjectIdImpl.valueOf(id);
         byte[] value = cache.get(objectId);
-        return value == null? null : getString(value);
+        return value == null? null : decompressJson(value);
     }
 
-    public String getString(byte[] value) {
+    public String decompressJson(byte[] value) {
         if (value == null) {
             return null;
         }
