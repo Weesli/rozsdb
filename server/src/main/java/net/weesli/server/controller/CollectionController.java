@@ -8,6 +8,8 @@ import net.weesli.api.database.Database;
 import net.weesli.server.ResponseMessage;
 import net.weesli.server.Server;
 import net.weesli.services.ServiceFactory;
+import net.weesli.services.mapper.ObjectMapperProvider;
+import net.weesli.services.security.SecurityService;
 import net.weesli.services.user.UserService;
 
 import java.util.Base64;
@@ -35,6 +37,11 @@ public class CollectionController {
     }
 
     private void authenticate(RoutingContext context) {
+        String ip = context.request().remoteAddress().host();
+        if (!getSecurityService().getIpChecker().checkIp(ip)) {
+            sendErrorResponse(context, 403, "Unauthorized");
+            return;
+        }
         String admin = context.request().headers().get("admin");
         if (admin == null || !userService.isAdmin(admin)) {
             sendErrorResponse(context, 403, "Unauthorized");
@@ -156,7 +163,7 @@ public class CollectionController {
         context.request().body().onSuccess(buffer -> {
             JsonObject body = new JsonObject(buffer.toString());
             String id = body.getString("id");
-            JsonObject jsonData = body.getJsonObject("data");
+            String jsonData = body.getString("data");
 
             if (jsonData == null) {
                 sendErrorResponse(context, 400, "Missing data parameter");
@@ -166,9 +173,9 @@ public class CollectionController {
             withDatabaseAndCollection(context, (database, collection) -> {
                 byte[] data;
                 if (id != null) {
-                    data = collection.insertOrUpdate(id, jsonData.toString());
+                    data = collection.insertOrUpdate(id, jsonData);
                 } else {
-                    data = collection.insertOrUpdate(jsonData.toString());
+                    data = collection.insertOrUpdate(jsonData);
                 }
                 String encodedData = Base64.getEncoder().encodeToString(data);
                 sendSuccessResponse(context, encodedData);
@@ -227,6 +234,10 @@ public class CollectionController {
                 .setStatusCode(statusCode)
                 .putHeader("Content-Type", "application/json")
                 .end(ResponseMessage.error(message).toString());
+    }
+
+    private SecurityService getSecurityService() {
+        return (SecurityService) ServiceFactory.getService(SecurityService.class);
     }
 
     @FunctionalInterface
