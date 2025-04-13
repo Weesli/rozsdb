@@ -5,14 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.luben.zstd.Zstd;
-import net.weesli.core.mapper.ObjectMapperProvider;
+import net.weesli.services.mapper.ObjectMapperProvider;
 import net.weesli.services.log.DatabaseLogger;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.StandardOpenOption;
 
 public class IndexMetaUtil {

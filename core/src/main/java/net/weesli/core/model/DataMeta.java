@@ -1,9 +1,10 @@
 package net.weesli.core.model;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
-@Getter
+@Getter@Setter
 public class DataMeta {
 
     private String id;

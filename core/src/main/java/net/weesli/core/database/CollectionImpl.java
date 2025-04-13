@@ -21,11 +21,11 @@ import net.weesli.core.timeout.types.CollectionTimeoutTask;
 import net.weesli.core.exception.CollectionError;
 import net.weesli.core.exception.CollectionTimeOutException;
 import net.weesli.core.file.DatabaseFileManager;
-import net.weesli.core.mapper.ObjectMapperProvider;
 import net.weesli.core.model.ObjectIdImpl;
 import net.weesli.core.store.CacheStoreImpl;
 import net.weesli.core.util.IndexMetaUtil;
 import net.weesli.services.log.DatabaseLogger;
+import net.weesli.services.mapper.ObjectMapperProvider;
 
 import java.io.File;
 import java.io.IOException;

@@ -1,12 +1,13 @@
 package net.weesli.core.index;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.SneakyThrows;
 import net.weesli.api.model.ObjectId;
-import net.weesli.core.mapper.ObjectMapperProvider;
+import net.weesli.services.mapper.ObjectMapperProvider;
 import net.weesli.core.model.DataMeta;
 import net.weesli.core.model.ObjectIdImpl;
 import net.weesli.core.util.IndexMetaUtil;
@@ -14,8 +15,10 @@ import net.weesli.core.util.IndexMetaUtil;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 public class IndexMetaManager {
     private final ConcurrentHashMap<String, Set<DataMeta>> records = new ConcurrentHashMap<>();
@@ -42,7 +45,21 @@ public class IndexMetaManager {
                     while (node.fields().hasNext()){
                         Map.Entry<String, JsonNode> field = node.fields().next();
                         if (field.getKey().equals("records")){
-                            List<DataMeta> dataMetas = mapper.convertValue(field.getValue(), mapper.getTypeFactory().constructCollectionType(List.class, DataMeta.class));
+                            JsonNode dataNode = field.getValue();
+                            String[] list = dataNode.asText().replaceAll("[\\[\\]\"]", "").split(",");
+                            for (int i = 0; i < list.length; i++) {
+                                list[i] = list[i].trim();
+                            }
+                            List<DataMeta> dataMetas = Stream.of(list)
+                                    .map(index -> {
+                                        try {
+                                            return mapper.readValue(index, DataMeta.class);
+                                        } catch (Exception e) {
+                                            return null;
+                                        }
+                                    })
+                                    .filter(Objects::nonNull)
+                                    .toList();
                             for (DataMeta dataMeta : dataMetas) {
                                 addRecord(name,dataMeta);
                             }
