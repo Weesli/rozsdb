@@ -8,6 +8,7 @@ import net.weesli.core.util.Settings;
 import net.weesli.core.file.WritePool;
 import net.weesli.server.Server;
 import net.weesli.services.log.DatabaseLogger;
+import net.weesli.services.security.SecurityService;
 import net.weesli.services.user.UserService;
 
 import java.io.File;
@@ -29,7 +30,7 @@ public class Main {
             core.createDatabase();
             core.createWritePool();
             IndexManager.getInstance();
-            new Server(new DatabasePoolProviderImpl(), core.getSettings().get("port").getAsInt());
+            new Server(new DatabasePoolProviderImpl(), core.getSettings().get("port").asInt());
             Runtime.getRuntime().addShutdownHook(new Thread(() -> { // register a hook for force save
                 if (core.writePool != null) core.writePool.forceUpdate();
                 IndexManager.getInstance().saveAll();
@@ -70,6 +71,7 @@ public class Main {
         private void startServices(Settings settings){
             log(ModuleType.CORE, DatabaseLogger.LogLevel.INFO, "All Services Loading...");
             new UserService().startService(new File("config/admins.json"));
+            new SecurityService().startService();
         }
 
         public void createWritePool() {
@@ -88,6 +90,7 @@ public class Main {
         public void initializeAllFiles() {
             createFileIfNotExists("config/settings.json");
             createFileIfNotExists("config/admins.json");
+            createFileIfNotExists("config/security.json");
         }
 
         private void createFileIfNotExists(String path) {

@@ -1,26 +1,23 @@
 package net.weesli.core.util;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.stream.JsonReader;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.SneakyThrows;
+import net.weesli.services.mapper.ObjectMapperProvider;
 
 import java.io.File;
 import java.io.FileReader;
 
 public class Settings {
 
-    private JsonObject settings;
+    private JsonNode settings;
 
     @SneakyThrows
     public Settings(File file){
         if (!file.exists()) return;
-        JsonReader reader = new JsonReader(new FileReader(file));
-        settings = JsonParser.parseReader(reader).getAsJsonObject();
+        settings = ObjectMapperProvider.getInstance().readTree(file);
     }
 
-    public JsonElement get(String key) {
+    public JsonNode get(String key) {
         return settings.get(key);
     }
 

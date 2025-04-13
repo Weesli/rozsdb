@@ -1,10 +1,11 @@
 package net.weesli.services.user.model;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
+import net.weesli.services.mapper.ObjectMapperProvider;
 import net.weesli.services.user.enums.UserPermission;
 
 import java.util.ArrayList;
@@ -21,12 +22,28 @@ public class User {
         this.password = password;
     }
 
+    @SneakyThrows
     public static User fromJson(String json) {
-        JsonObject user = JsonParser.parseString(json).getAsJsonObject();
-        String username = user.get("username").getAsString();
-        String password = user.get("password").getAsString();
-        JsonElement permissionsElement = user.get("permissions");
-        List<UserPermission> permissions = permissionsElement.getAsJsonArray().asList().stream().map(jsonElement -> UserPermission.valueOf(jsonElement.getAsString())).toList();
+        ObjectMapper mapper = ObjectMapperProvider.getInstance();
+        JsonNode node = mapper.readTree(json);
+        String username = node.get("username").asText();
+        String password = node.get("password").asText();
+        JsonNode permissionsElement = node.get("permissions");
+        if (permissionsElement == null || !permissionsElement.isArray()) {
+            throw new IllegalArgumentException("Invalid permissions structure!");
+        }
+        List<UserPermission> permissions = new ArrayList<>();
+        for (JsonNode permissionNode : permissionsElement) {
+            String permissionName = permissionNode.asText();
+            UserPermission permission = UserPermission.valueOf(permissionName);
+            permissions.add(permission);
+        }
+        if (username == null || username.isEmpty()) {
+            throw new IllegalArgumentException("Invalid username structure!");
+        }
+        if (password == null) {
+            throw new IllegalArgumentException("Invalid password structure!");
+        }
         return new User(username, password, new ArrayList<>(permissions));
     }
 

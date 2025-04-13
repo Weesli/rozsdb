@@ -1,10 +1,10 @@
 package net.weesli.services.user;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import net.weesli.services.Service;
 import net.weesli.services.log.DatabaseLogger;
+import net.weesli.services.mapper.ObjectMapperProvider;
 import net.weesli.services.user.enums.UserPermission;
 import net.weesli.services.user.model.User;
 
@@ -15,20 +15,27 @@ import java.nio.file.Files;
 public class UserRegistry extends BaseUser{
 
     Service service;
+    ObjectMapper mapper = ObjectMapperProvider.getInstance();
 
     public UserRegistry(Service service, File usersFile) throws IOException {
         this.service = service;
-        JsonObject object = JsonParser.parseReader(Files.newBufferedReader(usersFile.toPath())).getAsJsonObject();
-        if (object == null) throw new IOException("Could not read admins file!");
-        JsonElement adminsElement = object.get("admins");
-        if (adminsElement == null ||!adminsElement.isJsonArray()) throw new IOException("Invalid admins structure!");
+        JsonNode node = mapper.readTree(usersFile);
+        JsonNode adminsElement = node.get("admins");
+        if (adminsElement == null || !adminsElement.isArray()) {
+            throw new IllegalArgumentException("Invalid admins structure!");
+        }
         loadAll(adminsElement);
     }
 
-    private void loadAll(JsonElement adminsElement) {
-        for (JsonElement adminElement : adminsElement.getAsJsonArray()) {
-            JsonObject adminObject = adminElement.getAsJsonObject();
-            admins.add(User.fromJson(adminObject.toString()));
+    private void loadAll(JsonNode adminsElement) {
+        for (JsonNode adminNode : adminsElement) {
+            String json = adminNode.toString();
+            try {
+                User user = User.fromJson(json);
+                admins.add(user);
+            } catch (Exception e) {
+                DatabaseLogger.logService(DatabaseLogger.LogLevel.ERROR, "Error loading user: " + e.getMessage());
+            }
         }
     }
 
