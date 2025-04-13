@@ -1,4 +1,0 @@
-net\weesli\server\Server.class
-net\weesli\server\ResponseMessage.class
-net\weesli\server\controller\CollectionController$DatabaseCollectionConsumer.class
-net\weesli\server\controller\CollectionController.class
