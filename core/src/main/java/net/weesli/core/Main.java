@@ -2,7 +2,7 @@ package net.weesli.core;
 
 import lombok.Getter;
 import net.weesli.core.database.DatabaseImpl;
-import net.weesli.core.database.DatabasePoolProviderImpl;
+import net.weesli.core.database.DatabaseProviderImpl;
 import net.weesli.core.index.IndexManager;
 import net.weesli.core.util.Settings;
 import net.weesli.core.file.WritePool;
@@ -30,7 +30,7 @@ public class Main {
             core.createDatabase();
             core.createWritePool();
             IndexManager.getInstance();
-            new Server(new DatabasePoolProviderImpl(), core.getSettings().get("port").asInt());
+            new Server(new DatabaseProviderImpl());
             Runtime.getRuntime().addShutdownHook(new Thread(() -> { // register a hook for force save
                 if (core.writePool != null) core.writePool.forceUpdate();
                 IndexManager.getInstance().saveAll();

@@ -28,7 +28,7 @@ public class DatabaseFileManager {
     }
 
     @SneakyThrows
-    public synchronized void write(byte[] src, File file) {
+    public static synchronized void write(byte[] src, File file) {
         if (!file.exists()) {
             file.createNewFile();
         }
@@ -47,7 +47,7 @@ public class DatabaseFileManager {
             throw e;
         }
     }
-    public byte[] readWithSizeCheck(File file, int maxSizeMB) {
+    private static byte[] read(File file, int maxSizeMB) {
         if (!file.isFile()) throw new IllegalArgumentException("Path is not a file");
 
         long fileSizeBytes = file.length();
@@ -60,7 +60,14 @@ public class DatabaseFileManager {
             return readLargeFile(file);
         }
     }
-    private byte[] readSmallFile(File file) {
+
+    public static byte[] read(File file) {
+        if (!file.isFile()) throw new IllegalArgumentException("Path is not a file");
+        return read(file, Integer.MAX_VALUE);
+    }
+
+
+    private static byte[] readSmallFile(File file) {
         try {
             return Files.readAllBytes(file.toPath());
         } catch (IOException e) {
@@ -68,7 +75,7 @@ public class DatabaseFileManager {
         }
     }
 
-    private byte[] readLargeFile(File file) {
+    private static byte[] readLargeFile(File file) {
         try (FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.READ)) {
             long fileSize = channel.size();
 
@@ -121,7 +128,7 @@ public class DatabaseFileManager {
                 .map(file -> CompletableFuture.runAsync(() -> {
                     try {
                         if (file.getName().contains("meta")) return;
-                        byte[] content = readWithSizeCheck(file, maxSizePerFileMB);
+                        byte[] content = read(file, maxSizePerFileMB);
                         if (content != null) {
                             results.put(file.getName(), content);
                         }
@@ -145,7 +152,7 @@ public class DatabaseFileManager {
                     try {
                         if (file.getName().contains("meta")) return;
                         semaphore.acquire();
-                        byte[] content = readWithSizeCheck(file, maxSizePerFileMB);
+                        byte[] content = read(file, maxSizePerFileMB);
                         if (content != null) {
                             results.put(file.getName(), content);
                         }
@@ -196,16 +203,13 @@ public class DatabaseFileManager {
 
     @SneakyThrows
     public synchronized void writeIfChanged(byte[] src, File file) {
-        byte[] existingData = readWithSizeCheck(file, Integer.MAX_VALUE);
+        byte[] existingData = read(file, Integer.MAX_VALUE);
 
         if (existingData == null || !Arrays.equals(existingData, src)) {
             if (!file.exists()) {
                 file.createNewFile();
             }
             write(src, file);
-        } else {
-            DatabaseLogger.log(DatabaseLogger.ModuleType.CORE, DatabaseLogger.LogLevel.INFO,
-                    "No changes detected for file: " + file.getName() + ", skipping write.");
         }
     }
 

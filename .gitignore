@@ -1,8 +1,4 @@
 
-
-.idea/
-config
-
 RozsDB.iml
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -16,6 +12,24 @@ RozsDB.iml
 *.iws
 *.iml
 *.ipr
+
+### GLOBAL ###
+
+database
+config
+server.zip
+
+### API ###
+api/target
+
+### Server ###
+server/target
+
+### Services ###
+services/target
+
+### Core ###
+core/build
 
 ### Eclipse ###
 .apt_generated

@@ -1,6 +1,7 @@
 package net.weesli.server;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import net.weesli.server.channel.ChannelSecurity;
 import net.weesli.server.model.SocketResponse;
 import net.weesli.server.channel.ChannelAuth;
 import net.weesli.server.channel.ChannelReader;
@@ -11,23 +12,27 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Future;
 
 public class ClientHandler implements Runnable {
 
     private final Socket socket;
     private final ChannelReader reader;
 
-    private Thread thread;
-
     public ClientHandler(Socket socket) {
         this.socket = socket;
         reader = new ChannelReader(socket);
+        boolean isAllowedIp = ChannelSecurity.isAllowedIp(socket.getInetAddress().getHostAddress());
+        if (!isAllowedIp) {
+            stop();
+            try {
+                SocketResponse.error("Security Error: This ip is not allowed in this database.").send(socket);
+            } catch (IOException e) {
+                DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, e.getMessage());
+            }
+            return;
+        }
         DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO, "Client connected" + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
-    }
-
-    public void start() {
-        thread = new Thread(this);
-        thread.start();
     }
 
     public void stop() {
@@ -37,6 +42,7 @@ public class ClientHandler implements Runnable {
             DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, e.getMessage());
         }
         DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO, "Client disconnected" + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
+
     }
 
     @Override

@@ -273,6 +273,13 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         });
     }
 
+    @Override
+    public void close() {
+        task.cancel();
+        save();
+        cache.clear();
+    }
+
     private List<DataMeta> getRecords(){
         return new ArrayList<>(IndexManager.getInstance().getIndexMetaManager(database.getName()).getRecords(collectionName));
     }

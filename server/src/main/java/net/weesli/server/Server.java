@@ -1,51 +1,63 @@
 package net.weesli.server;
 
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Vertx;
-import io.vertx.ext.web.Router;
 import lombok.Getter;
-import lombok.SneakyThrows;
-import net.weesli.api.DatabasePoolProvider;
-import net.weesli.api.DatabasePool;
-import net.weesli.server.controller.CollectionController;
+import lombok.Setter;
+import net.weesli.api.DatabaseProvider;
 import net.weesli.services.log.DatabaseLogger;
 
-@Getter
-public class Server extends AbstractVerticle {
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-    private final DatabasePool databasePool;
-    private final int port;
+public class Server {
 
-    @SneakyThrows
-    public Server(DatabasePoolProvider provider, int port) {
-        this.databasePool = provider.getDatabasePool();
-        this.port = port;
-        start();
-    }
+    private ServerSocket server;
+    private final ExecutorService clientPool;
 
-    @Override
-    public void start() {
-        initializeServer();
-    }
+    @Getter
+    @Setter
+    private static DatabaseProvider provider;
 
-    private void initializeServer() {
-        vertx = Vertx.vertx();
-        Router router = Router.router(vertx);
-        addRouters(router);
-        startServer(router);
-    }
-
-    private void startServer(Router router) {
-        vertx.createHttpServer().requestHandler(router).listen(port, result -> {
-            if (result.succeeded()) {
-                DatabaseLogger.log(DatabaseLogger.ModuleType.SERVER, DatabaseLogger.LogLevel.INFO, String.format("Server is running on port %s", port));
-            } else {
-                DatabaseLogger.log(DatabaseLogger.ModuleType.SERVER, DatabaseLogger.LogLevel.ERROR, "Failed to start server: " + result.cause().getMessage());
+    public Server(DatabaseProvider provider) {
+        int maxClientCount = provider.getCoreSettings().get("maxClientCount").asInt();
+        int port = provider.getCoreSettings().get("port").asInt();
+        clientPool = Executors.newFixedThreadPool(maxClientCount);
+        Server.provider = provider;
+        try {
+            server = new ServerSocket(port);
+            DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO, "Server started on port " + port);
+            while (true) {
+                Socket socket = acceptClient();
+                if (socket != null) {
+                    clientPool.execute(new ClientHandler(socket));
+                }
             }
-        });
+        } catch (IOException e) {
+            DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, e.getMessage());
+        } finally {
+            shutdown();
+        }
     }
 
-    private void addRouters(Router router) {
-        new CollectionController(this).addRoutes(router);
+    private Socket acceptClient() {
+        try {
+            return server.accept();
+        } catch (IOException e) {
+            DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, e.getMessage());
+            return null;
+        }
+    }
+
+    private void shutdown() {
+        try {
+            if (server != null && !server.isClosed()) {
+                server.close();
+            }
+            clientPool.shutdown();
+        } catch (IOException e) {
+            DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, e.getMessage());
+        }
     }
 }

@@ -1,4 +1,5 @@
 {
   "logger": true,
-  "port": 1212
+  "port": 1212,
+  "maxClientCount": 10
 }

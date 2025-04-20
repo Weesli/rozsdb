@@ -21,4 +21,5 @@ public interface Collection extends CacheStore {
     List<byte[]> findAll();
 
     void save();
+    void close();
 }
