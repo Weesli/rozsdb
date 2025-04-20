@@ -4,7 +4,8 @@ import net.weesli.api.database.Database;
 
 import java.util.List;
 
-public interface DatabasePool {
+public interface DatabaseProvider {
 
     List<Database> getDatabases();
+    CoreSettings getCoreSettings();
 }

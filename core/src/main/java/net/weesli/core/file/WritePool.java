@@ -1,7 +1,7 @@
 package net.weesli.core.file;
 
 import lombok.Getter;
-import net.weesli.api.DatabasePool;
+import net.weesli.api.DatabaseProvider;
 import net.weesli.api.database.Collection;
 import net.weesli.api.database.Database;
 import net.weesli.api.model.ObjectId;
@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 @Getter
-public class WritePool extends DatabaseFileManager implements DatabasePool {
+public class WritePool extends DatabaseFileManager implements DatabaseProvider {
 
     private final ScheduledExecutorService scheduler;
     private final ScheduledExecutorService threadPool;
