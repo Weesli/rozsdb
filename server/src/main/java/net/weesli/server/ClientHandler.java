@@ -1,0 +1,77 @@
+package net.weesli.server;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import net.weesli.server.model.SocketResponse;
+import net.weesli.server.channel.ChannelAuth;
+import net.weesli.server.channel.ChannelReader;
+import net.weesli.services.log.DatabaseLogger;
+import net.weesli.services.mapper.ObjectMapperProvider;
+
+import java.io.*;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+
+public class ClientHandler implements Runnable {
+
+    private final Socket socket;
+    private final ChannelReader reader;
+
+    private Thread thread;
+
+    public ClientHandler(Socket socket) {
+        this.socket = socket;
+        reader = new ChannelReader(socket);
+        DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO, "Client connected" + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
+    }
+
+    public void start() {
+        thread = new Thread(this);
+        thread.start();
+    }
+
+    public void stop() {
+        try {
+            socket.close();
+        } catch (IOException e) {
+            DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, e.getMessage());
+        }
+        DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO, "Client disconnected" + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
+    }
+
+    @Override
+    public void run() {
+        try (InputStream in = socket.getInputStream()) {
+            while (!Thread.currentThread().isInterrupted() && !socket.isClosed()) {
+                byte[] lengthBytes = in.readNBytes(4);
+                if (lengthBytes.length < 4) {
+                    stop();
+                    break;
+                }
+
+                int length = ByteBuffer.wrap(lengthBytes).getInt();
+                byte[] dataBytes = in.readNBytes(length);
+                if (dataBytes.length < length) {
+                    stop();
+                    break;
+                }
+
+                String jsonStr = new String(dataBytes, StandardCharsets.UTF_8);
+                JsonNode node = ObjectMapperProvider.getInstance().readTree(jsonStr);
+
+                if (!ChannelAuth.auth(node)) {
+                    SocketResponse response = SocketResponse.error("Unauthorized: User is not authorized");
+                    response.send(socket);
+                    continue;
+                }
+
+                reader.read(node);
+            }
+        } catch (IOException exception) {
+            DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, exception.getMessage());
+        } finally {
+            stop();
+        }
+    }
+
+}
