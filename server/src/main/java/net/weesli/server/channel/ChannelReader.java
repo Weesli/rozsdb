@@ -120,7 +120,7 @@ public class ChannelReader {
 
     private Database getDatabase(JsonNode node){
         String dbName = node.get("database").asText();
-        return Server.getProvider().getDatabasePool().getDatabases().stream().filter(database -> database.getName().equals(dbName)).findFirst().orElse(null);
+        return Server.getProvider().getDatabases().stream().filter(database -> database.getName().equals(dbName)).findFirst().orElse(null);
     }
 
     private Collection getCollection(JsonNode node){
