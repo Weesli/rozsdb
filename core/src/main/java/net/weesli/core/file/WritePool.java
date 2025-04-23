@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 @Getter
-public class WritePool extends DatabaseFileManager implements DatabaseProvider {
+public class WritePool extends DatabaseFileManager {
 
     private final ScheduledExecutorService scheduler;
     private final ScheduledExecutorService threadPool;

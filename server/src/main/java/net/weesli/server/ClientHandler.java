@@ -42,7 +42,6 @@ public class ClientHandler implements Runnable {
             DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, e.getMessage());
         }
         DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO, "Client disconnected" + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
-
     }
 
     @Override
