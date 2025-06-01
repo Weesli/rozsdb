@@ -5,6 +5,7 @@ import lombok.SneakyThrows;
 import net.weesli.core.file.DatabaseFileManager;
 
 import java.io.File;
+import java.nio.ByteBuffer;
 
 public class CompressUtil {
     public static byte[] compress(byte[] data) {
@@ -45,5 +46,19 @@ public class CompressUtil {
             throw new IllegalArgumentException("Failed to decompress data");
         }
         return decompressed;
+    }
+
+    @SneakyThrows
+    public static byte[] decompress(ByteBuffer buffer) {
+        if (buffer == null || buffer.remaining() == 0) {
+            throw new IllegalArgumentException("Data to decompress cannot be null or empty");
+        }
+        // decompress the data
+        long decompressedSize = Zstd.getFrameContentSize(buffer);
+        ByteBuffer decompressed = Zstd.decompress(buffer, (int) decompressedSize);
+        if (decompressed == null) {
+            throw new IllegalArgumentException("Failed to decompress data");
+        }
+        return decompressed.array();
     }
 }

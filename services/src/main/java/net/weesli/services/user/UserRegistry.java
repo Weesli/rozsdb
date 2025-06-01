@@ -11,11 +11,15 @@ import net.weesli.services.user.model.User;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 
-public class UserRegistry extends BaseUser{
+public class UserRegistry{
 
     Service service;
     ObjectMapper mapper = ObjectMapperProvider.getInstance();
+
+    public List<User> admins = new ArrayList<>();
 
     public UserRegistry(Service service, File usersFile) throws IOException {
         this.service = service;

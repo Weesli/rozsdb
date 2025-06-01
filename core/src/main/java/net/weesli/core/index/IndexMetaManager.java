@@ -1,10 +1,10 @@
 package net.weesli.core.index;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import net.weesli.api.model.ObjectId;
 import net.weesli.services.mapper.ObjectMapperProvider;
@@ -20,8 +20,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
+@Getter
 public class IndexMetaManager {
     private final ConcurrentHashMap<String, Set<DataMeta>> records = new ConcurrentHashMap<>();
+
     public IndexMetaManager(File file) {
         load(file);
     }
@@ -34,37 +36,22 @@ public class IndexMetaManager {
             for (File path : files) {
                 if (path.isDirectory()) {
                     String name = path.getName();
-                    records.put(name,ConcurrentHashMap.newKeySet());
+                    records.put(name, ConcurrentHashMap.newKeySet());
                     File metaFile = new File(path, "meta.rozs");
                     boolean status = IndexMetaUtil.insertDefaultMeta(metaFile);
-                    if (status) continue;
+                    if (!status) continue;
                     JsonNode node = IndexMetaUtil.getMeta(metaFile);
-                    if (node == null) {
-                        continue;
-                    }
-                    while (node.fields().hasNext()){
-                        Map.Entry<String, JsonNode> field = node.fields().next();
-                        if (field.getKey().equals("records")){
-                            JsonNode dataNode = field.getValue();
-                            String[] list = dataNode.asText().replaceAll("[\\[\\]\"]", "").split(",");
-                            for (int i = 0; i < list.length; i++) {
-                                list[i] = list[i].trim();
-                            }
-                            List<DataMeta> dataMetas = Stream.of(list)
-                                    .map(index -> {
-                                        try {
-                                            return mapper.readValue(index, DataMeta.class);
-                                        } catch (Exception e) {
-                                            return null;
-                                        }
-                                    })
-                                    .filter(Objects::nonNull)
-                                    .toList();
-                            for (DataMeta dataMeta : dataMetas) {
-                                addRecord(name,dataMeta);
-                            }
+                    if (node == null) continue;
+                    JsonNode dataNode = node.get("records");
+                    if (dataNode != null && dataNode.isArray()) {
+                        ArrayNode arrayNode = (ArrayNode) dataNode;
+                        while (arrayNode.iterator().hasNext()) {
+                            JsonNode recordNode = arrayNode.get(0);
+                            if (recordNode == null) continue;
+                            DataMeta dataMeta = mapper.treeToValue(recordNode, DataMeta.class);
+                            records.get(name).add(dataMeta);
+                            arrayNode.remove(0);
                         }
-                        break;
                     }
                 }
             }
@@ -75,6 +62,7 @@ public class IndexMetaManager {
         Set<DataMeta> dataMetas = records.computeIfAbsent(collectionName, k -> ConcurrentHashMap.newKeySet());
         dataMetas.add(dataMeta);
     }
+
     public void removeRecord(String collectionName, String id) {
         Set<DataMeta> dataMetas = records.get(collectionName);
         if (dataMetas != null) {
@@ -82,12 +70,12 @@ public class IndexMetaManager {
         }
     }
 
-    public List<DataMeta> getRecords(String collectionName) {
+    public Set<DataMeta> getRecords(String collectionName) {
         Set<DataMeta> dataMetas = records.get(collectionName);
         if (dataMetas != null) {
-            return List.copyOf(dataMetas);
+            return dataMetas;
         }
-        return List.of();
+        return ConcurrentHashMap.newKeySet();
     }
 
     public DataMeta getRecord(String collectionName, ObjectId id) {
@@ -108,7 +96,8 @@ public class IndexMetaManager {
             ObjectMapper mapper = ObjectMapperProvider.getInstance();
             Set<DataMeta> dataMetas = records.get(collectionName);
             File meta = new File(new File(file, collectionName), "meta.rozs");
-            JsonNode node = IndexMetaUtil.getMeta(meta);
+            ObjectNode node = mapper.createObjectNode();
+            node.put("records", mapper.createArrayNode());
             JsonNode dataNode = node.get("records");
             if (dataMetas != null) {
                 for (DataMeta dataMeta : dataMetas) {
@@ -120,4 +109,5 @@ public class IndexMetaManager {
             IndexMetaUtil.writeMeta(meta, node);
         }
     }
+
 }

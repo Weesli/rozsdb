@@ -34,4 +34,14 @@ public class DataMeta {
     public void changeUpdatedAt(String updatedAt){
         this.updatedAt = updatedAt;
     }
+    @Override
+    public String toString() {
+        return "DataMeta{" +
+                "id='" + id + '\'' +
+                ", createdAt='" + createdAt + '\'' +
+                ", updatedAt='" + updatedAt + '\'' +
+                ", fields=" + fields +
+                '}';
+    }
+
 }

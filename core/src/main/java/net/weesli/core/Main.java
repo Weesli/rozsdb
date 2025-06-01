@@ -1,9 +1,13 @@
 package net.weesli.core;
 
 import lombok.Getter;
+import net.weesli.api.database.Collection;
+import net.weesli.api.database.Database;
 import net.weesli.core.database.DatabaseImpl;
+import net.weesli.core.database.DatabasePool;
 import net.weesli.core.database.DatabaseProviderImpl;
 import net.weesli.core.index.IndexManager;
+import net.weesli.core.model.DataMeta;
 import net.weesli.core.model.Settings;
 import net.weesli.core.file.WritePool;
 import net.weesli.server.Server;
@@ -17,8 +21,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class Main {
 
@@ -29,13 +33,19 @@ public class Main {
             core = new MainInstance();
             core.createDatabase();
             core.createWritePool();
+            core.loadAllDatabases();
             IndexManager.getInstance();
-            new Server(new DatabaseProviderImpl());
+            DatabaseProviderImpl provider = new DatabaseProviderImpl();
+            new Thread(() -> new Server(provider), "RozsDB-Server-Thread").start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> { // register a hook for force save
                 if (core.writePool != null) core.writePool.forceUpdate();
                 IndexManager.getInstance().saveAll();
                 DatabaseLogger.log(DatabaseLogger.ModuleType.CORE,DatabaseLogger.LogLevel.INFO, "RozsDatabase is shutting down...");
             }));
+            Database database = DatabasePool.getInstance().load("example");
+            Collection collection = database.getCollection("users");
+            List<byte[]> users = collection.find("name", "John Doe");
+            System.out.println(users.size());
         }catch (Exception e){
             e.printStackTrace();
             System.exit(1);
@@ -74,17 +84,19 @@ public class Main {
             new SecurityService().startService();
         }
 
-        public void createWritePool() {
+        public void loadAllDatabases() {
             File[] files = databasePath.toFile().listFiles();
             if (files == null || files.length == 0) {
                 log(ModuleType.CORE, DatabaseLogger.LogLevel.ERROR, "No database files found!");
-                writePool = new WritePool();
                 return;
             }
+            List<File> databases = Arrays.stream(files).toList();
+            databases.forEach(databasePath -> DatabasePool.getInstance().load(databasePath));
+            log(ModuleType.CORE, DatabaseLogger.LogLevel.INFO, "All databases are loaded!");
+        }
+        public void createWritePool() {
             // convert the file to Database
-            Set<DatabaseImpl> databases = Arrays.stream(files).map(file-> new DatabaseImpl(file.getName(), file)).collect(Collectors.toSet());
             writePool = new WritePool();
-            databases.forEach(writePool::register);
             log(ModuleType.CORE, DatabaseLogger.LogLevel.INFO, "Write pool is created!");
         }
         public void initializeAllFiles() {

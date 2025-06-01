@@ -12,22 +12,18 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 
 public class IndexMetaUtil {
 
     public static boolean insertDefaultMeta(File file){
         if (!file.exists()) {
-            try {
-                file.createNewFile();
-                JsonNode node = getBaseMeta();
-                IndexMetaUtil.writeMeta(file, node);
-                return true;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            JsonNode meta = getBaseMeta();
+            writeMeta(file, meta);
         }
-        return false;
+        return true;
     }
 
     private static JsonNode getBaseMeta(){
@@ -38,23 +34,18 @@ public class IndexMetaUtil {
     }
 
     public static JsonNode getMeta(File file) {
-        try (FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.READ)) {
-            long fileSize = channel.size();
-            ByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, fileSize);
-            byte[] value = new byte[(int) fileSize];
-            buffer.get(value);
-
-            long decompressedSize = Zstd.decompressedSize(value);
-            if (decompressedSize <= 0) {
-                decompressedSize = value.length * 10L;
+        try {
+            if (!file.exists() || file.length() == 0) {
+                return null;
             }
 
-            byte[] decompressed = Zstd.decompress(value, (int) decompressedSize);
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            byte[] decompressed = CompressUtil.decompress(bytes);
+
             ObjectMapper mapper = ObjectMapperProvider.getInstance();
-            JsonNode root = mapper.readTree(new String(decompressed));
+            JsonNode root = mapper.readTree(new String(decompressed, StandardCharsets.UTF_8));
 
             JsonNode recordsNode = root.get("records");
-
             if (recordsNode != null && recordsNode.isArray()) {
                 ArrayNode correctedRecords = mapper.createArrayNode();
                 for (JsonNode strNode : recordsNode) {
@@ -68,12 +59,11 @@ public class IndexMetaUtil {
             return root;
 
         } catch (IOException e) {
-            DatabaseLogger.logCore(DatabaseLogger.LogLevel.ERROR,
-                    "Failed to read meta file: " + file.getName() + " - " + e.getMessage());
+            DatabaseLogger.logCore(DatabaseLogger.LogLevel.ERROR, "Failed to read meta file: " + file.getName() + " - " + e.getMessage());
         }
-
         return null;
     }
+
 
 
 
@@ -81,11 +71,14 @@ public class IndexMetaUtil {
     public static void writeMeta(File file, JsonNode node) {
         try {
             ObjectMapper mapper = ObjectMapperProvider.getInstance();
-            byte[] compressed = Zstd.compress(mapper.writeValueAsBytes(node));
-            try (FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.WRITE, StandardOpenOption.CREATE)) {
+            byte[] compressed = CompressUtil.compress(node.toString().getBytes(StandardCharsets.UTF_8));
+            try (FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
                 ByteBuffer buffer = ByteBuffer.wrap(compressed);
                 while (buffer.hasRemaining()) {
-                    channel.write(buffer);
+                    int result = channel.write(buffer);
+                    if (result == -1) {
+                        throw new IOException("Failed to write meta file: " + file.getName());
+                    }
                 }
                 channel.force(true);
             }

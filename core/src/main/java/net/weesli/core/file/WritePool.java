@@ -6,6 +6,7 @@ import net.weesli.api.database.Collection;
 import net.weesli.api.database.Database;
 import net.weesli.api.model.ObjectId;
 import net.weesli.core.database.DatabaseImpl;
+import net.weesli.core.database.DatabasePool;
 import net.weesli.core.model.WriteTask;
 
 import java.io.File;
@@ -18,7 +19,6 @@ public class WritePool extends DatabaseFileManager {
     private final ScheduledExecutorService scheduler;
     private final ScheduledExecutorService threadPool;
 
-    private final List<Database> databases = new ArrayList<>();
     private final BlockingQueue<WriteTask> writeQueue;
     private final int BATCH_SIZE = 100;
 
@@ -27,10 +27,6 @@ public class WritePool extends DatabaseFileManager {
         threadPool = Executors.newScheduledThreadPool(10);
         writeQueue = new LinkedBlockingQueue<>();
         start();
-    }
-
-    public void register(DatabaseImpl databaseImpl) {
-        databases.add(databaseImpl);
     }
 
     public void start() {

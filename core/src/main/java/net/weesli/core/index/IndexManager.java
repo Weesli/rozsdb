@@ -1,8 +1,11 @@
 package net.weesli.core.index;
 
+import net.weesli.api.database.Database;
 import net.weesli.core.Main;
+import net.weesli.core.database.DatabasePool;
 
 import java.io.File;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class IndexManager {
@@ -22,14 +25,9 @@ public class IndexManager {
     }
 
     public void load() {
-        File[] file = Main.core.getDatabasePath().toFile().listFiles();
-        if (file != null) { // load all database folders
-            for (File path : file) {
-                if (path.isDirectory()) {
-                    String name = path.getName();
-                    indexMetaManagers.put(name, new IndexMetaManager(path));
-                }
-            }
+        List<Database> database = DatabasePool.getInstance().getDatabases();
+        for (Database db : database) {
+            indexMetaManagers.put(db.getName(), new IndexMetaManager(db.getDirectory()));
         }
     }
 
