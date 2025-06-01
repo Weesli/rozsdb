@@ -4,7 +4,7 @@ import lombok.Getter;
 import net.weesli.core.database.DatabaseImpl;
 import net.weesli.core.database.DatabaseProviderImpl;
 import net.weesli.core.index.IndexManager;
-import net.weesli.core.util.Settings;
+import net.weesli.core.model.Settings;
 import net.weesli.core.file.WritePool;
 import net.weesli.server.Server;
 import net.weesli.services.log.DatabaseLogger;

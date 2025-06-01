@@ -186,7 +186,7 @@ public class DatabaseFileManager {
             collectionDir.mkdirs();
         }
 
-        Map<ObjectId, byte[]> entries = collection.getCache();
+        Map<ObjectId, byte[]> entries = collection.getCollectionData().getDataStore();
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 

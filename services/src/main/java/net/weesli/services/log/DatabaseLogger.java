@@ -19,6 +19,7 @@ public class DatabaseLogger {
             default -> "\u001B[0m";
         };
         System.out.printf("%s[%s] [%s] [%s] %s\u001B[0m%n", color,moduleType.name(), level.name(), getFormattedTime(), message);
+        LogWriter.log(moduleType.name() + " - " + level.name() + " - " + message);
     }
 
     public static void logCore(LogLevel level, String message) {

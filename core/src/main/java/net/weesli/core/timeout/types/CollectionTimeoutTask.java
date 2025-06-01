@@ -17,7 +17,7 @@ public class CollectionTimeoutTask extends TimeoutTask {
     public void execute() {
         // save cache to disk and clear cache's
         collection.save();
-        collection.getCache().clear();
+        collection.getCollectionData().getDataStore().clear();
         collection.getDatabase().unregisterCollection(collection.getCollectionName());
         cancel();
     }

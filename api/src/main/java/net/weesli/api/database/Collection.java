@@ -1,12 +1,14 @@
 package net.weesli.api.database;
 
 
-import net.weesli.api.CacheStore;
+import net.weesli.api.cache.CollectionData;
+import net.weesli.api.model.ObjectId;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
-public interface Collection extends CacheStore {
+public interface Collection {
 
     Path getCollectionPath();
     String getCollectionName();
@@ -19,6 +21,8 @@ public interface Collection extends CacheStore {
     byte[] findById(String id);
     List<byte[]> find(String where, Object value);
     List<byte[]> findAll();
+
+    CollectionData getCollectionData();
 
     void save();
     void close();

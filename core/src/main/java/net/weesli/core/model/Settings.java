@@ -1,4 +1,4 @@
-package net.weesli.core.util;
+package net.weesli.core.model;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.SneakyThrows;

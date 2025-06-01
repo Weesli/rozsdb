@@ -5,7 +5,6 @@ import lombok.SneakyThrows;
 import net.weesli.core.file.DatabaseFileManager;
 
 import java.io.File;
-import java.nio.file.Path;
 
 public class CompressUtil {
     public static byte[] compress(byte[] data) {

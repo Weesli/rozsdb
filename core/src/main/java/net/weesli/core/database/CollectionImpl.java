@@ -10,10 +10,12 @@ import com.github.luben.zstd.Zstd;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import net.weesli.api.cache.CollectionData;
 import net.weesli.api.database.Collection;
 import net.weesli.api.database.Database;
 import net.weesli.api.model.ObjectId;
 import net.weesli.core.Main;
+import net.weesli.core.cache.CollectionDataImpl;
 import net.weesli.core.index.IndexManager;
 import net.weesli.core.model.DataMeta;
 import net.weesli.core.timeout.TimeoutTask;
@@ -22,7 +24,7 @@ import net.weesli.core.exception.CollectionError;
 import net.weesli.core.exception.CollectionTimeOutException;
 import net.weesli.core.file.DatabaseFileManager;
 import net.weesli.core.model.ObjectIdImpl;
-import net.weesli.core.store.CacheStoreImpl;
+import net.weesli.core.util.CompressUtil;
 import net.weesli.core.util.IndexMetaUtil;
 import net.weesli.services.log.DatabaseLogger;
 import net.weesli.services.mapper.ObjectMapperProvider;
@@ -35,7 +37,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Getter@Setter
-public class CollectionImpl extends CacheStoreImpl implements Collection {
+public class CollectionImpl implements Collection {
     private ObjectMapper mapper = ObjectMapperProvider.getInstance();
 
     private Database database;
@@ -44,7 +46,12 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
     private boolean timeout;
     private TimeoutTask task;
 
+    private CollectionData collectionData;
+    private Map<ObjectId, byte[]> dataStore;
+
     public CollectionImpl(DatabaseImpl databaseImpl, String collectionName) {
+        this.collectionData = new CollectionDataImpl(this);
+        this.dataStore = collectionData.getDataStore();
         this.database = databaseImpl;
         this.collectionName = collectionName;
         this.collectionPath = new File(databaseImpl.getDirectory(), collectionName).toPath();
@@ -60,7 +67,7 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
 
     private void load(){
         DatabaseFileManager fileManager = new DatabaseFileManager();
-        fileManager.readAllFilesInDirectory(collectionPath.toFile(), 1000).forEach((key, value) -> cache.put(ObjectIdImpl.valueOf(key), value));
+        fileManager.readAllFilesInDirectory(collectionPath.toFile(), 1000).forEach((key, value) -> dataStore.put(ObjectIdImpl.valueOf(key), value));
     }
 
     @SneakyThrows
@@ -73,7 +80,7 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         JsonNode object = getJsonObject(src);
         String jsonWithId = appendId(id, object);
         byte[] data = appendByteFormat(jsonWithId);
-        cache.put(objectId, data);
+        dataStore.put(objectId, data);
         triggerAction();
         Main.core.getWritePool().enqueueWrite(database, objectId, data);
         Iterator<String> fields = object.fieldNames();
@@ -100,7 +107,7 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         JsonNode object = getJsonObject(src);
         String jsonWithId = appendId(id.getObjectId(), object);
         byte[] data = appendByteFormat(jsonWithId);
-        cache.put(id, data);
+        dataStore.put(id, data);
         triggerAction();
         Main.core.getWritePool().enqueueWrite(database, id, data);
         Iterator<String> fields = object.fieldNames();
@@ -119,10 +126,10 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         if(isTimeout()){
             throw new CollectionTimeOutException("This collection is out of time");
         }
-        if(!cache.containsKey(ObjectIdImpl.valueOf(id))){
+        if(!dataStore.containsKey(ObjectIdImpl.valueOf(id))){
             return false;
         }
-        cache.remove(ObjectIdImpl.valueOf(id));
+        dataStore.remove(ObjectIdImpl.valueOf(id));
         DatabaseFileManager fileManager = new DatabaseFileManager();
         fileManager.deleteFile(new File(collectionPath.toFile(), id)); // force delete in disk
         triggerAction();
@@ -136,11 +143,11 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         if(isTimeout()){
             throw new CollectionTimeOutException("This collection is out of time");
         }
-        if(!cache.containsKey(ObjectIdImpl.valueOf(id))){
+        if(!dataStore.containsKey(ObjectIdImpl.valueOf(id))){
             return null;
         }
         triggerAction();
-        return cache.get(ObjectIdImpl.valueOf(id));
+        return dataStore.get(ObjectIdImpl.valueOf(id));
     }
 
     @SneakyThrows
@@ -153,10 +160,9 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
         for (DataMeta record : getRecords()) {
             if (!record.hasField(where)) continue;
 
-            byte[] entry = cache.get(ObjectIdImpl.valueOf(record.getId()));
+            byte[] entry = dataStore.get(ObjectIdImpl.valueOf(record.getId()));
             if (entry == null) continue;
-            String decompressedJson = decompressJson(entry);
-            if (decompressedJson == null) continue;
+            String decompressedJson = new String(CompressUtil.decompress(entry), StandardCharsets.UTF_8);
 
             try (JsonParser parser = mapper.getFactory().createParser(decompressedJson)) {
                 boolean isMatch = false;
@@ -203,7 +209,7 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
             throw new CollectionTimeOutException("This collection is out of time");
         }
         triggerAction();
-        return cache.values().stream().toList();
+        return dataStore.values().stream().toList();
     }
 
     public JsonNode getJsonObject(String src){
@@ -250,8 +256,8 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
     }
 
     public void reload(){
-        if (!cache.isEmpty()) {
-            cache.clear();
+        if (!dataStore.isEmpty()) {
+            dataStore.clear();
         }
         DatabaseLogger.log(DatabaseLogger.ModuleType.CORE, DatabaseLogger.LogLevel.INFO, "Reloading collection is :" + collectionName);
         load();
@@ -260,7 +266,7 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
     @Override
     public void save() {
         DatabaseFileManager fileManager = new DatabaseFileManager();
-        cache.values().forEach(entry -> {
+        dataStore.values().forEach(entry -> {
             try {
                 fileManager.writeCollection(this);
             } catch (Exception e) {
@@ -277,7 +283,7 @@ public class CollectionImpl extends CacheStoreImpl implements Collection {
     public void close() {
         task.cancel();
         save();
-        cache.clear();
+        dataStore.clear();
     }
 
     private List<DataMeta> getRecords(){

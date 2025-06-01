@@ -18,7 +18,7 @@ public class WritePool extends DatabaseFileManager {
     private final ScheduledExecutorService scheduler;
     private final ScheduledExecutorService threadPool;
 
-    private List<Database> databases = new ArrayList<>();
+    private final List<Database> databases = new ArrayList<>();
     private final BlockingQueue<WriteTask> writeQueue;
     private final int BATCH_SIZE = 100;
 
