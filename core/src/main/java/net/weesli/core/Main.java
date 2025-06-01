@@ -3,11 +3,9 @@ package net.weesli.core;
 import lombok.Getter;
 import net.weesli.api.database.Collection;
 import net.weesli.api.database.Database;
-import net.weesli.core.database.DatabaseImpl;
 import net.weesli.core.database.DatabasePool;
 import net.weesli.core.database.DatabaseProviderImpl;
 import net.weesli.core.index.IndexManager;
-import net.weesli.core.model.DataMeta;
 import net.weesli.core.model.Settings;
 import net.weesli.core.file.WritePool;
 import net.weesli.server.Server;
@@ -22,7 +20,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 public class Main {
 
