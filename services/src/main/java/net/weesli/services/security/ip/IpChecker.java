@@ -4,8 +4,6 @@ import lombok.SneakyThrows;
 import net.weesli.services.security.ip.util.IPUtil;
 
 import java.io.File;
-import java.net.URI;
-import java.nio.file.Path;
 import java.util.List;
 
 public class IpChecker {

@@ -1,24 +1,26 @@
 package net.weesli.core.index;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.dslplatform.json.DslJson;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import net.weesli.api.model.ObjectId;
-import net.weesli.services.mapper.ObjectMapperProvider;
+import net.weesli.core.JsonUtil;
 import net.weesli.core.model.DataMeta;
 import net.weesli.core.model.ObjectIdImpl;
 import net.weesli.core.util.IndexMetaUtil;
+import net.weesli.services.json.JsonBase;
+import org.apache.commons.text.StringEscapeUtils;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
+
+import static net.weesli.core.JsonUtil.dslJson;
+
 
 @Getter
 public class IndexMetaManager {
@@ -30,7 +32,6 @@ public class IndexMetaManager {
 
     @SneakyThrows
     public void load(File file) {
-        ObjectMapper mapper = ObjectMapperProvider.getInstance();
         File[] files = file.listFiles();
         if (files != null) {
             for (File path : files) {
@@ -40,17 +41,20 @@ public class IndexMetaManager {
                     File metaFile = new File(path, "meta.rozs");
                     boolean status = IndexMetaUtil.insertDefaultMeta(metaFile);
                     if (!status) continue;
-                    JsonNode node = IndexMetaUtil.getMeta(metaFile);
+                    JsonBase node = IndexMetaUtil.getMeta(metaFile);
                     if (node == null) continue;
-                    JsonNode dataNode = node.get("records");
-                    if (dataNode != null && dataNode.isArray()) {
-                        ArrayNode arrayNode = (ArrayNode) dataNode;
-                        while (arrayNode.iterator().hasNext()) {
-                            JsonNode recordNode = arrayNode.get(0);
-                            if (recordNode == null) continue;
-                            DataMeta dataMeta = mapper.treeToValue(recordNode, DataMeta.class);
-                            records.get(name).add(dataMeta);
-                            arrayNode.remove(0);
+                    List<String> records = node.getAsList("records", String.class);
+                    if (records != null) {
+                        for (String record : records) {
+                            String escaped = record;
+                            if (escaped.startsWith("\"") && escaped.endsWith("\"")) {
+                                escaped = org.apache.commons.text.StringEscapeUtils.unescapeJson(
+                                        escaped.substring(1, escaped.length() - 1)
+                                );
+                            }
+                            byte[] bytes = escaped.getBytes(StandardCharsets.UTF_8);
+                            DataMeta dataMeta = dslJson.deserialize(DataMeta.class, bytes, bytes.length);
+                            addRecord(name, dataMeta);
                         }
                     }
                 }
@@ -93,18 +97,19 @@ public class IndexMetaManager {
     @SneakyThrows
     public void saveRecords(File file) {
         for (String collectionName : records.keySet()) {
-            ObjectMapper mapper = ObjectMapperProvider.getInstance();
             Set<DataMeta> dataMetas = records.get(collectionName);
             File meta = new File(new File(file, collectionName), "meta.rozs");
-            ObjectNode node = mapper.createObjectNode();
-            node.put("records", mapper.createArrayNode());
-            JsonNode dataNode = node.get("records");
+            JsonBase node = new JsonBase(new HashMap<>());
+            List<String> values = new ArrayList<>();
             if (dataMetas != null) {
                 for (DataMeta dataMeta : dataMetas) {
-                    String value = mapper.writeValueAsString(dataMeta);
-                    ((ArrayNode) dataNode).add(value);
+                    DslJson<Object> dslJson = JsonUtil.dslJson;
+                    ByteArrayOutputStream output = new ByteArrayOutputStream();
+                    dslJson.serialize(dataMeta, output);
+                    values.add(output.toString(StandardCharsets.UTF_8));
                 }
             }
+            node.put("records", values);
             // write node to file
             IndexMetaUtil.writeMeta(meta, node);
         }

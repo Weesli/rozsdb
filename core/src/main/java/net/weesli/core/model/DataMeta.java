@@ -1,10 +1,12 @@
 package net.weesli.core.model;
 
+import com.dslplatform.json.CompiledJson;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
 @Getter@Setter
+@CompiledJson
 public class DataMeta {
 
     private String id;
@@ -13,6 +15,7 @@ public class DataMeta {
     private List<String> fields;
 
     public DataMeta(){
+
     }
 
     public DataMeta(String id, String createdAt, String updatedAt, List<String> fields) {

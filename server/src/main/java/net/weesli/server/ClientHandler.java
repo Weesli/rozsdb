@@ -1,18 +1,16 @@
 package net.weesli.server;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import net.weesli.server.channel.ChannelSecurity;
 import net.weesli.server.model.SocketResponse;
 import net.weesli.server.channel.ChannelAuth;
 import net.weesli.server.channel.ChannelReader;
+import net.weesli.services.json.JsonBase;
 import net.weesli.services.log.DatabaseLogger;
-import net.weesli.services.mapper.ObjectMapperProvider;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.Future;
 
 public class ClientHandler implements Runnable {
 
@@ -60,9 +58,7 @@ public class ClientHandler implements Runnable {
                     stop();
                     break;
                 }
-
-                String jsonStr = new String(dataBytes, StandardCharsets.UTF_8);
-                JsonNode node = ObjectMapperProvider.getInstance().readTree(jsonStr);
+                JsonBase node = new JsonBase(dataBytes);
 
                 if (!ChannelAuth.auth(node)) {
                     SocketResponse response = SocketResponse.error("Unauthorized: User is not authorized");

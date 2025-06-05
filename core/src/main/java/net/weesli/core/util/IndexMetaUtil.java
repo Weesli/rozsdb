@@ -1,11 +1,6 @@
 package net.weesli.core.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.luben.zstd.Zstd;
-import net.weesli.services.mapper.ObjectMapperProvider;
+import net.weesli.services.json.JsonBase;
 import net.weesli.services.log.DatabaseLogger;
 
 import java.io.File;
@@ -15,25 +10,26 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 public class IndexMetaUtil {
 
     public static boolean insertDefaultMeta(File file){
         if (!file.exists()) {
-            JsonNode meta = getBaseMeta();
+            JsonBase meta = getBaseMeta();
             writeMeta(file, meta);
         }
         return true;
     }
 
-    private static JsonNode getBaseMeta(){
-        ObjectMapper mapper = ObjectMapperProvider.getInstance();
-        ObjectNode node = mapper.createObjectNode();
-        node.put("records", mapper.createArrayNode());
-        return node;
+    private static JsonBase getBaseMeta(){
+        JsonBase base = new JsonBase(new HashMap<>());
+        base.put("records", new ArrayList<>());
+        return base;
     }
 
-    public static JsonNode getMeta(File file) {
+    public static JsonBase getMeta(File file) {
         try {
             if (!file.exists() || file.length() == 0) {
                 return null;
@@ -41,37 +37,17 @@ public class IndexMetaUtil {
 
             byte[] bytes = Files.readAllBytes(file.toPath());
             byte[] decompressed = CompressUtil.decompress(bytes);
-
-            ObjectMapper mapper = ObjectMapperProvider.getInstance();
-            JsonNode root = mapper.readTree(new String(decompressed, StandardCharsets.UTF_8));
-
-            JsonNode recordsNode = root.get("records");
-            if (recordsNode != null && recordsNode.isArray()) {
-                ArrayNode correctedRecords = mapper.createArrayNode();
-                for (JsonNode strNode : recordsNode) {
-                    if (strNode.isTextual()) {
-                        JsonNode objNode = mapper.readTree(strNode.asText());
-                        correctedRecords.add(objNode);
-                    }
-                }
-                ((ObjectNode) root).set("records", correctedRecords);
-            }
-            return root;
-
+            JsonBase base =  new JsonBase(decompressed);
+            return base;
         } catch (IOException e) {
             DatabaseLogger.logCore(DatabaseLogger.LogLevel.ERROR, "Failed to read meta file: " + file.getName() + " - " + e.getMessage());
         }
         return null;
     }
 
-
-
-
-
-    public static void writeMeta(File file, JsonNode node) {
+    public static void writeMeta(File file, JsonBase node) {
         try {
-            ObjectMapper mapper = ObjectMapperProvider.getInstance();
-            byte[] compressed = CompressUtil.compress(node.toString().getBytes(StandardCharsets.UTF_8));
+            byte[] compressed = CompressUtil.compress(node.asJsonText().getBytes(StandardCharsets.UTF_8));
             try (FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
                 ByteBuffer buffer = ByteBuffer.wrap(compressed);
                 while (buffer.hasRemaining()) {

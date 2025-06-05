@@ -27,5 +27,4 @@ public record SocketResponse(boolean success, String message) {
         out.write(jsonBytes);
         out.flush();
     }
-
 }

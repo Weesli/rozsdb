@@ -7,7 +7,9 @@ import net.weesli.services.log.DatabaseLogger;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
+import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
@@ -25,6 +27,7 @@ public class DatabaseFileManager {
 
     public DatabaseFileManager() {
         this(Runtime.getRuntime().availableProcessors() * 2);
+
     }
 
     @SneakyThrows
@@ -32,7 +35,6 @@ public class DatabaseFileManager {
         if (!file.exists()) {
             file.createNewFile();
         }
-
         try (FileChannel channel = FileChannel.open(file.toPath(),
                 StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
             ByteBuffer buffer = ByteBuffer.wrap(src);

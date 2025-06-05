@@ -1,11 +1,11 @@
 package net.weesli.server.channel;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import net.weesli.api.database.Collection;
 import net.weesli.api.database.Database;
 import net.weesli.server.Server;
 import net.weesli.server.exception.AuthException;
 import net.weesli.server.model.SocketResponse;
+import net.weesli.services.json.JsonBase;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -20,8 +20,8 @@ public class ChannelReader {
         this.socket = socket;
     }
 
-    public void read(JsonNode node){
-        String action = node.get("action").asText();
+    public void read(JsonBase node){
+        String action = node.get("action").getAsString();
         SocketResponse response = null;
         try {
             switch (action) {
@@ -45,25 +45,25 @@ public class ChannelReader {
         }
     }
 
-    private void assertPermission(JsonNode node, String permission) throws AuthException {
+    private void assertPermission(JsonBase node, String permission) throws AuthException {
         if (!ChannelAuth.hasPermission(node, permission)){
             throw new AuthException("Unauthorized: missing permission '" + permission + "'");
         }
     }
 
-    private SocketResponse handleClose(JsonNode node) throws AuthException {
+    private SocketResponse handleClose(JsonBase node) throws AuthException {
         assertPermission(node, "write");
         Collection collection = getCollection(node);
         collection.close();
         return SocketResponse.success("CLOSED");
     }
 
-    private SocketResponse handleInsertOrUpdate(JsonNode node) throws AuthException {
+    private SocketResponse handleInsertOrUpdate(JsonBase node) throws AuthException {
         assertPermission(node, "write");
         Collection collection = getCollection(node);
-        JsonNode object = node.get("object");
-        String id = (object.has("id") ? object.get("id").asText() : null);
-        String data = object.get("data").asText();
+        JsonBase object = node.getAsJson("object");
+        String id = (object.has("id") ? object.get("id").getAsString() : null);
+        String data = object.get("data").getAsString();
         byte[] response;
         if (id == null){
             response = collection.insertOrUpdate(data);
@@ -74,43 +74,43 @@ public class ChannelReader {
         return SocketResponse.success(s);
     }
 
-    private SocketResponse handleConnection(JsonNode node) throws AuthException {
+    private SocketResponse handleConnection(JsonBase node) throws AuthException {
         assertPermission(node, "read");
         Collection collection = getCollection(node); // this is register collection to database for load all data's
         return SocketResponse.success("CONNECTED");
     }
 
-    private SocketResponse handleFindAll(JsonNode node) throws AuthException {
+    private SocketResponse handleFindAll(JsonBase node) throws AuthException {
         assertPermission(node, "read");
         Collection collection = getCollection(node);
         List<String> result = collection.findAll().stream().map(e -> Base64.getEncoder().encodeToString(e)).toList();
         return SocketResponse.success(result.toString());
     }
 
-    private SocketResponse handleFind(JsonNode node) throws AuthException {
+    private SocketResponse handleFind(JsonBase node) throws AuthException {
         assertPermission(node, "read");
         Collection collection = getCollection(node);
-        JsonNode object = node.get("object");
-        String where = object.get("where").asText();
-        Object value = object.get("value").asText();
+        JsonBase object = node.getAsJson("object");
+        String where = object.get("where").getAsString();
+        Object value = object.get("value").getAsString();
         List<String> result = collection.find(where, value).stream().map(e -> Base64.getEncoder().encodeToString(e)).toList();
         return SocketResponse.success(result.toString());
     }
 
-    private SocketResponse handleDelete(JsonNode node) throws AuthException {
+    private SocketResponse handleDelete(JsonBase node) throws AuthException {
         assertPermission(node, "write");
         Collection collection = getCollection(node);
-        JsonNode object = node.get("object");
-        String id = object.get("id").asText();
+        JsonBase object = node.getAsJson("object");
+        String id = object.get("id").getAsString();
         collection.delete(id);
         return SocketResponse.success(Base64.getEncoder().encodeToString("DELETED".getBytes(StandardCharsets.UTF_8)));
     }
 
-    private SocketResponse handleFindById(JsonNode node) throws AuthException {
+    private SocketResponse handleFindById(JsonBase node) throws AuthException {
         assertPermission(node, "read");
         Collection collection = getCollection(node);
-        JsonNode object = node.get("object");
-        String id = object.get("id").asText();
+        JsonBase object = node.getAsJson("object");
+        String id = object.get("id").getAsString();
         byte[] result = collection.findById(id);
         if (result == null){
             return SocketResponse.error("Not found");
@@ -118,17 +118,17 @@ public class ChannelReader {
         return SocketResponse.success(Base64.getEncoder().encodeToString(result));
     }
 
-    private Database getDatabase(JsonNode node){
-        String dbName = node.get("database").asText();
+    private Database getDatabase(JsonBase node){
+        String dbName = node.get("database").getAsString();
         return Server.getProvider().getDatabases().stream().filter(database -> database.getName().equals(dbName)).findFirst().orElse(null);
     }
 
-    private Collection getCollection(JsonNode node){
+    private Collection getCollection(JsonBase node){
         Database database = getDatabase(node);
         if (database == null) {
             throw new RuntimeException("Database not found");
         }
-        String collectionName = node.get("collection").asText();
+        String collectionName = node.get("collection").getAsString();
         Collection collection = database.getCollection(collectionName);
         if (collection == null) {
             throw new RuntimeException("Collection not found");

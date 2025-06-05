@@ -1,8 +1,9 @@
 package net.weesli.api;
 
-import com.fasterxml.jackson.databind.JsonNode;
+
+import net.weesli.services.json.JsonBase;
 
 public interface CoreSettings {
-    JsonNode getSettings();
-    JsonNode get(String key);
+    JsonBase getSettings();
+    JsonBase get(String key);
 }

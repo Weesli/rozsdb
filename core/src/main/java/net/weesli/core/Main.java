@@ -1,25 +1,30 @@
 package net.weesli.core;
 
+import com.dslplatform.json.DslJson;
 import lombok.Getter;
 import net.weesli.api.database.Collection;
 import net.weesli.api.database.Database;
 import net.weesli.core.database.DatabasePool;
 import net.weesli.core.database.DatabaseProviderImpl;
 import net.weesli.core.index.IndexManager;
+import net.weesli.core.model.DataMeta;
 import net.weesli.core.model.Settings;
 import net.weesli.core.file.WritePool;
 import net.weesli.server.Server;
+import net.weesli.services.json.JsonBase;
 import net.weesli.services.log.DatabaseLogger;
 import net.weesli.services.security.SecurityService;
 import net.weesli.services.user.UserService;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class Main {
 
@@ -39,10 +44,6 @@ public class Main {
                 IndexManager.getInstance().saveAll();
                 DatabaseLogger.log(DatabaseLogger.ModuleType.CORE,DatabaseLogger.LogLevel.INFO, "RozsDatabase is shutting down...");
             }));
-            Database database = DatabasePool.getInstance().load("example");
-            Collection collection = database.getCollection("users");
-            List<byte[]> users = collection.find("name", "John Doe");
-            System.out.println(users.size());
         }catch (Exception e){
             e.printStackTrace();
             System.exit(1);
@@ -123,4 +124,5 @@ public class Main {
             }
         }
     }
+
 }

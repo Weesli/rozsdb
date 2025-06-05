@@ -21,12 +21,12 @@ public class Server {
     private static DatabaseProvider provider;
 
     public Server(DatabaseProvider provider) {
-        int maxClientCount = provider.getCoreSettings().get("maxClientCount").asInt();
-        int port = provider.getCoreSettings().get("port").asInt();
-        clientPool = Executors.newFixedThreadPool(maxClientCount);
+        long maxClientCount = provider.getCoreSettings().getSettings().get("maxClientCount", Long.class);
+        long port = provider.getCoreSettings().getSettings().get("port", Long.class);
+        clientPool = Executors.newFixedThreadPool((int) maxClientCount);
         Server.provider = provider;
         try {
-            server = new ServerSocket(port);
+            server = new ServerSocket((int) port);
             DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO, "Server started on port " + port);
             while (true) {
                 Socket socket = acceptClient();
