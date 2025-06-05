@@ -18,7 +18,8 @@
     </properties>
 
     <build>
-        <directory>${project.basedir}/build</directory>
+        <outputDirectory>../build</outputDirectory>
+        <directory>../build</directory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -27,6 +28,18 @@
                 <configuration>
                     <source>17</source>
                     <target>17</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>com.dslplatform</groupId>
+                            <artifactId>dsl-json-processor</artifactId>
+                            <version>1.9.8</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.36</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
 
@@ -42,9 +55,9 @@
                             <mainClass>net.weesli.core.Main</mainClass>
                         </manifest>
                     </archive>
+
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -66,22 +79,6 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.bsc.maven</groupId>
-                <artifactId>maven-processor-plugin</artifactId>
-                <version>3.3.3</version>
-                <executions>
-                    <execution>
-                        <goals><goal>process</goal></goals>
-                        <phase>generate-sources</phase>
-                    </execution>
-                </executions>
-                <configuration>
-                    <processors>
-                        <processor>com.dslplatform.json.CompiledJsonProcessor</processor>
-                    </processors>
-                </configuration>
             </plugin>
         </plugins>
     </build>
@@ -114,5 +111,4 @@
             <version>1.5.6-3</version>
         </dependency>
     </dependencies>
-
 </project>
