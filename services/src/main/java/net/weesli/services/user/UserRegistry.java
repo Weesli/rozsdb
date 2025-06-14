@@ -8,7 +8,6 @@ import net.weesli.services.user.enums.UserPermission;
 import net.weesli.services.user.model.User;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,11 +17,11 @@ public class UserRegistry{
 
     public List<User> admins = new ArrayList<>();
 
-    public UserRegistry(Service service, File usersFile) throws IOException {
+    public UserRegistry(Service service, File usersFile) {
         this.service = service;
         JsonBase base = new JsonBase(usersFile);
-        List<JsonBase> adminsElement = base.getAsJsonList("admins");
-        loadAll(adminsElement);
+        System.out.println(base.asJsonText());
+        //loadAll(adminsElement);
     }
 
     private void loadAll(List<JsonBase> adminsElement) {

@@ -10,40 +10,52 @@ import net.weesli.services.log.DatabaseLogger;
 import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-
 public class ClientHandler implements Runnable {
 
     private final Socket socket;
     private final ChannelReader reader;
+    private final boolean isAuthorized;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
         reader = new ChannelReader(socket);
         boolean isAllowedIp = ChannelSecurity.isAllowedIp(socket.getInetAddress().getHostAddress());
+        this.isAuthorized = isAllowedIp;
+
         if (!isAllowedIp) {
-            stop();
             try {
                 SocketResponse.error("Security Error: This ip is not allowed in this database.").send(socket);
+                DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR,
+                        "Security Error: This ip is not allowed in this database: " +
+                                socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
             } catch (IOException e) {
                 DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, e.getMessage());
             }
+            stop();
             return;
         }
-        DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO, "Client connected" + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
+        DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO,
+                "Client connected: " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
     }
 
     public void stop() {
         try {
-            socket.close();
+            if (!socket.isClosed()) {
+                socket.close();
+            }
         } catch (IOException e) {
             DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, e.getMessage());
         }
-        DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO, "Client disconnected" + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
+        DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO,
+                "Client disconnected: " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
     }
 
     @Override
     public void run() {
+        if (!isAuthorized) {
+            return;
+        }
+
         try (InputStream in = socket.getInputStream()) {
             while (!Thread.currentThread().isInterrupted() && !socket.isClosed()) {
                 byte[] lengthBytes = in.readNBytes(4);
@@ -74,5 +86,4 @@ public class ClientHandler implements Runnable {
             stop();
         }
     }
-
 }

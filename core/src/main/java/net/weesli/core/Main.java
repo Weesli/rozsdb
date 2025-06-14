@@ -38,7 +38,7 @@ public class Main {
             core.loadAllDatabases();
             IndexManager.getInstance();
             DatabaseProviderImpl provider = new DatabaseProviderImpl();
-            new Thread(() -> new Server(provider), "RozsDB-Server-Thread").start();
+            new Thread(() -> new Server(provider).start(), "RozsDB-Server-Thread").start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> { // register a hook for force save
                 if (core.writePool != null) core.writePool.forceUpdate();
                 IndexManager.getInstance().saveAll();
