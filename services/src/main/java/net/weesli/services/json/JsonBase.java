@@ -9,6 +9,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,7 +29,13 @@ public class JsonBase implements Serializable {
             byte[] bytes = new byte[(int) accessFile.length()];
             buffer.get(bytes);
             DslJson<Object> dslJson = new DslJson<>(Settings.withRuntime());
-            data = (Map<String, Object>) dslJson.deserialize(Object.class, bytes, bytes.length);
+            Object o = dslJson.deserialize(Object.class, bytes, bytes.length);
+            if (o instanceof Map) {
+                this.data = (Map<String, Object>) o;
+            }else if (o instanceof List) {
+                this.data = new HashMap<>();
+                this.data.put("0", o);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -130,5 +137,12 @@ public class JsonBase implements Serializable {
         } catch (IOException e) {
             throw new RuntimeException("Serialization failed", e);
         }
+    }
+
+    public List<Object> getList(){
+        if (data.get("0") instanceof List) {
+            return (List<Object>) data.get("0");
+        }
+        throw new RuntimeException("Json Error: This json object is not a list.");
     }
 }

@@ -22,7 +22,7 @@ public class IPUtil {
         if(node == null){
             return null;
         }
-        List<String> allowed = node.getAsList("allowedIps", String.class);
+        List<String> allowed = node.getAsList("allowed_ips", String.class);
         if(allowed == null){
             return null;
         }

@@ -1,7 +1,5 @@
 package net.weesli.services.user.model;
 
-import lombok.Getter;
-import lombok.Setter;
 import lombok.SneakyThrows;
 import net.weesli.services.json.JsonBase;
 import net.weesli.services.user.enums.UserPermission;
@@ -9,7 +7,6 @@ import net.weesli.services.user.enums.UserPermission;
 import java.util.ArrayList;
 import java.util.List;
 
-@Getter@Setter
 public class User {
     private String username;
     private String password;
@@ -49,4 +46,21 @@ public class User {
     public boolean hasPermission(UserPermission permission) {
         return permissions.contains(permission);
     }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
 }

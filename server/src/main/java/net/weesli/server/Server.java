@@ -18,21 +18,19 @@ public class Server {
     private ServerSocket server;
     private final ExecutorService clientPool;
     private volatile boolean running = false;
-    private final int port;
+    private final long port;
 
-    @Getter
-    @Setter
     private static DatabaseProvider provider;
 
     public Server(DatabaseProvider provider) {
-        int maxClientCount = provider.getCoreSettings().getSettings().get("maxClientCount", Integer.class);
-        this.port = provider.getCoreSettings().getSettings().get("port", Integer.class);
+        long maxClientCount = provider.getCoreSettings().getSettings().get("maxClientCount", Long.class);
+        this.port = provider.getCoreSettings().getSettings().get("port", Long.class);
 
-        clientPool = Executors.newFixedThreadPool(maxClientCount);
+        clientPool = Executors.newFixedThreadPool((int) maxClientCount);
         Server.provider = provider;
 
         try {
-            server = new ServerSocket(port);
+            server = new ServerSocket((int) port);
             DatabaseLogger.logServer(DatabaseLogger.LogLevel.INFO, "Server started on port " + port);
         } catch (IOException e) {
             DatabaseLogger.logServer(DatabaseLogger.LogLevel.ERROR, "Failed to start server on port " + port + ": " + e.getMessage());
@@ -126,10 +124,15 @@ public class Server {
     }
 
     public int getPort() {
-        return port;
+        return (int) port;
     }
 
     public int getActiveClientCount() {
         return ((ThreadPoolExecutor) clientPool).getActiveCount();
     }
+
+    public static DatabaseProvider getProvider() {
+        return provider;
+    }
+
 }

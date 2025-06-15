@@ -61,7 +61,7 @@ public class ChannelReader {
     private SocketResponse handleInsertOrUpdate(JsonBase node) throws AuthException {
         assertPermission(node, "write");
         Collection collection = getCollection(node);
-        JsonBase object = node.getAsJson("object");
+        JsonBase object = new JsonBase(node.get("object").getAsString().getBytes(StandardCharsets.UTF_8));
         String id = (object.has("id") ? object.get("id").getAsString() : null);
         String data = object.get("data").getAsString();
         byte[] response;

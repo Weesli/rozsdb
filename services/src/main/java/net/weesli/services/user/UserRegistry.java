@@ -10,6 +10,7 @@ import net.weesli.services.user.model.User;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class UserRegistry{
 
@@ -20,12 +21,14 @@ public class UserRegistry{
     public UserRegistry(Service service, File usersFile) {
         this.service = service;
         JsonBase base = new JsonBase(usersFile);
-        System.out.println(base.asJsonText());
-        //loadAll(adminsElement);
+        List<Object> adminsElement = base.getList();
+        loadAll(adminsElement);
     }
 
-    private void loadAll(List<JsonBase> adminsElement) {
-        for (JsonBase adminNode : adminsElement) {
+    @SuppressWarnings("unchecked")
+    private void loadAll(List<Object> adminsElement) {
+        for (Object o : adminsElement) {
+            JsonBase adminNode = new JsonBase((Map<String, Object>) o);
             try {
                 User user = User.fromJson(adminNode);
                 admins.add(user);
