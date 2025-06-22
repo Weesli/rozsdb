@@ -148,10 +148,11 @@ public class CollectionImpl implements Collection {
         if (isTimeout()){
             throw new CollectionTimeOutException("This collection is out of time");
         }
+        Map<ObjectId,byte[]> merged = collectionData.getAll();
         List<byte[]> result = Collections.synchronizedList(new ArrayList<>());
         for (DataMeta record : getRecords()) {
             if (!record.hasField(where)) continue;
-            byte[] entry = dataStore.get(ObjectIdImpl.valueOf(record.getId()));
+            byte[] entry = merged.get(ObjectIdImpl.valueOf(record.getId()));
             if (entry == null) continue;
             byte[] decompressedBytes = CompressUtil.decompress(entry);
             JsonBase base = new JsonBase(decompressedBytes);
@@ -170,7 +171,8 @@ public class CollectionImpl implements Collection {
             throw new CollectionTimeOutException("This collection is out of time");
         }
         triggerAction();
-        return dataStore.values().stream().toList();
+        Map<ObjectId, byte[]> value = collectionData.getAll();
+        return new ArrayList<>(value.values());
     }
 
     public JsonBase getJsonObject(String src){

@@ -90,7 +90,7 @@ public class ChannelReader {
     private SocketResponse handleFind(JsonBase node) throws AuthException {
         assertPermission(node, "read");
         Collection collection = getCollection(node);
-        JsonBase object = node.getAsJson("object");
+        JsonBase object = new JsonBase(node.get("object").getAsString().getBytes(StandardCharsets.UTF_8));
         String where = object.get("where").getAsString();
         Object value = object.get("value").getAsString();
         List<String> result = collection.find(where, value).stream().map(e -> Base64.getEncoder().encodeToString(e)).toList();

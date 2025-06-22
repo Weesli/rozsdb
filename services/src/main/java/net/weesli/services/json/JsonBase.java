@@ -1,6 +1,5 @@
 package net.weesli.services.json;
 
-import com.dslplatform.json.CompiledJson;
 import com.dslplatform.json.DslJson;
 import com.dslplatform.json.runtime.Settings;
 
